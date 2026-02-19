@@ -93,7 +93,7 @@ export const MOCK_DOCUMENTS: TrainingDocument[] = [
   {
     id: 'doc-regulament',
     title: 'Regulament Intern',
-    minimumReadingSeconds: 60,
+    minimumReadingSeconds: 1,
     content: `
 REGULAMENT INTERN LASERZONE ARENA
 
@@ -143,7 +143,7 @@ REGULAMENT INTERN LASERZONE ARENA
   {
     id: 'doc-siguranta',
     title: 'Proceduri de Siguranta',
-    minimumReadingSeconds: 45,
+    minimumReadingSeconds: 1,
     content: `
 PROCEDURI DE SIGURANTA LASERZONE ARENA
 
@@ -193,7 +193,7 @@ PROCEDURI DE SIGURANTA LASERZONE ARENA
   {
     id: 'doc-echipament',
     title: 'Ghid Utilizare Echipament',
-    minimumReadingSeconds: 30,
+    minimumReadingSeconds: 1,
     content: `
 GHID UTILIZARE ECHIPAMENT LASERZONE
 
@@ -249,7 +249,7 @@ GHID UTILIZARE ECHIPAMENT LASERZONE
 /**
  * URL video de training (placeholder - se va inlocui cu video real)
  */
-export const MOCK_VIDEO_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+export const MOCK_VIDEO_URL = 'https://www.youtube.com/watch?v=QC8iQqtG0hg
 
 export interface VideoChapter {
   timestamp: number // secunde
@@ -300,7 +300,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q1-c', text: '15 minute' },
       { id: 'q1-d', text: '30 minute' },
     ],
-    correctAnswer: 'q1-c',
+    correctAnswer: 'q1-a',
   },
   {
     id: 'q2',
@@ -312,7 +312,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q2-c', text: '20 persoane' },
       { id: 'q2-d', text: '25 persoane' },
     ],
-    correctAnswer: 'q2-c',
+    correctAnswer: 'q2-a',
   },
   {
     id: 'q3',
@@ -324,7 +324,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q3-c', text: 'Asteptand 10 secunde' },
       { id: 'q3-d', text: 'Mergand la punctul de respawn' },
     ],
-    correctAnswer: 'q3-b',
+    correctAnswer: 'q3-a',
   },
   {
     id: 'q4',
@@ -336,7 +336,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q4-c', text: '12 ani' },
       { id: 'q4-d', text: '14 ani' },
     ],
-    correctAnswer: 'q4-c',
+    correctAnswer: 'q4-a',
   },
   {
     id: 'q5',
@@ -348,7 +348,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q5-c', text: 'Ii refuzati intrarea' },
       { id: 'q5-d', text: 'Chemati ambulanta' },
     ],
-    correctAnswer: 'q5-b',
+    correctAnswer: 'q5-a',
   },
   {
     id: 'q6',
@@ -360,7 +360,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q6-c', text: '80-90%' },
       { id: 'q6-d', text: '100%' },
     ],
-    correctAnswer: 'q6-b',
+    correctAnswer: 'q6-a',
   },
 
   // True/False (2 intrebari)
@@ -372,7 +372,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q7-t', text: 'Adevarat' },
       { id: 'q7-f', text: 'Fals' },
     ],
-    correctAnswer: 'q7-f',
+    correctAnswer: 'q7-t',
   },
   {
     id: 'q8',
@@ -396,7 +396,7 @@ export const MOCK_QUIZ_QUESTIONS: QuizQuestion[] = [
       { id: 'q9-c', text: 'Sapca' },
       { id: 'q9-d', text: 'Incaltaminte inchisa sport' },
     ],
-    correctAnswer: ['q9-a', 'q9-b', 'q9-d'],
+    correctAnswer: ['q9-a', 'q9-b', 'q9-c'],
   },
   {
     id: 'q10',

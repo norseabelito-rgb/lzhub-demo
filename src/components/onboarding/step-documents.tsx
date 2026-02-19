@@ -13,7 +13,6 @@ import { Progress } from '@/components/ui/progress'
 import {
   FileText,
   CheckCircle2,
-  Clock,
   ChevronRight,
   ArrowRight,
   BookOpen,
@@ -50,7 +49,6 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
   // Store actions and state
   const currentProgress = useOnboardingStore((state) => state.currentProgress)
   const startDocument = useOnboardingStore((state) => state.startDocument)
-  const updateDocumentTime = useOnboardingStore((state) => state.updateDocumentTime)
   const confirmDocument = useOnboardingStore((state) => state.confirmDocument)
   const areAllDocumentsConfirmed = useOnboardingStore((state) => state.areAllDocumentsConfirmed)
   const goToStep = useOnboardingStore((state) => state.goToStep)
@@ -91,11 +89,6 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
     handleCloseDocument()
   }
 
-  // Handle time update
-  const handleTimeUpdate = (documentId: string, seconds: number) => {
-    updateDocumentTime(documentId, seconds)
-  }
-
   // Continue to next step
   const handleContinue = () => {
     if (allConfirmed) {
@@ -131,9 +124,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
           documentId={activeDocument.id}
           title={activeDocument.title}
           content={activeDocument.content}
-          minimumReadingSeconds={activeDocument.minimumReadingSeconds}
           isConfirmed={activeStatus.isConfirmed}
-          onTimeUpdate={handleTimeUpdate}
           onConfirm={handleConfirmDocument}
         />
       </div>
@@ -151,7 +142,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
         </div>
         <p className="text-sm text-muted-foreground">
           Cititi si confirmati fiecare document inainte de a continua. Fiecare document
-          necesita sa ajungeti la sfarsit si sa petreceti un timp minim de citire.
+          necesita sa derulati pana la sfarsit.
         </p>
       </div>
 
@@ -202,15 +193,9 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
                 {/* Title and info */}
                 <div>
                   <h3 className="font-medium">{status.document.title}</h3>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Min. {status.document.minimumReadingSeconds}s
-                    </span>
-                    {status.isStarted && !status.isConfirmed && (
-                      <span>Citit: {status.timeSpent}s</span>
-                    )}
-                  </div>
+                  {status.isStarted && !status.isConfirmed && (
+                    <p className="text-sm text-muted-foreground">In progres</p>
+                  )}
                 </div>
               </div>
 

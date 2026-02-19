@@ -1,16 +1,16 @@
 'use client'
 
 /**
- * DocumentViewer - Viewer pentru documente cu scroll detection si timer unlock
- * Necesita scroll-to-bottom si timp minim de citire inainte de confirmare
+ * DocumentViewer - Viewer pentru documente cu scroll detection
+ * Necesita scroll-to-bottom inainte de confirmare
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Clock, ChevronDown, ScrollText, Lock } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ScrollText, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface DocumentViewerProps {
@@ -20,12 +20,8 @@ export interface DocumentViewerProps {
   title: string
   /** Continutul documentului (text sau HTML) */
   content: string
-  /** Timpul minim de citire in secunde */
-  minimumReadingSeconds: number
   /** Daca documentul a fost deja confirmat */
   isConfirmed?: boolean
-  /** Callback pentru actualizarea timpului petrecut */
-  onTimeUpdate?: (documentId: string, seconds: number) => void
   /** Callback pentru confirmarea documentului */
   onConfirm?: (documentId: string) => void
   /** Clasa CSS suplimentara */
@@ -35,66 +31,24 @@ export interface DocumentViewerProps {
 /**
  * Viewer pentru documente de onboarding
  * - Detecteaza scroll-to-bottom
- * - Timer pentru timp minim de citire
- * - Buton de confirmare se deblocheaza cand ambele conditii sunt indeplinite
+ * - Buton de confirmare se deblocheaza cand utilizatorul a derulat pana jos
  */
 export function DocumentViewer({
   documentId,
   title,
   content,
-  minimumReadingSeconds,
   isConfirmed = false,
-  onTimeUpdate,
   onConfirm,
   className,
 }: DocumentViewerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  // Refs to avoid infinite loop - store callback and last notified time
-  const onTimeUpdateRef = useRef(onTimeUpdate)
-  const lastNotifiedTimeRef = useRef(0)
-
-  // Keep ref updated with latest callback
-  useEffect(() => {
-    onTimeUpdateRef.current = onTimeUpdate
-  }, [onTimeUpdate])
 
   // State pentru tracking
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
-  const [timeSpent, setTimeSpent] = useState(0)
   const [showScrollHint, setShowScrollHint] = useState(true)
 
-  // Conditii pentru deblocarea butonului de confirmare
-  const hasMinimumTime = timeSpent >= minimumReadingSeconds
-  const canConfirm = hasScrolledToBottom && hasMinimumTime && !isConfirmed
-
-  // Porneste timer-ul cand componenta devine vizibila
-  // Only increments local state - store notification happens in separate effect
-  useEffect(() => {
-    if (isConfirmed) return
-
-    timerRef.current = setInterval(() => {
-      setTimeSpent((prev) => prev + 1)
-    }, 1000)
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
-    }
-  }, [isConfirmed])
-
-  // Notify store of time updates (every 5 seconds)
-  // Uses ref to avoid infinite loop from callback recreation
-  useEffect(() => {
-    if (isConfirmed) return
-    // Only notify if we've passed a new 5-second threshold since last notification
-    const currentThreshold = Math.floor(timeSpent / 5) * 5
-    if (currentThreshold > 0 && currentThreshold > lastNotifiedTimeRef.current) {
-      lastNotifiedTimeRef.current = currentThreshold
-      onTimeUpdateRef.current?.(documentId, 5)
-    }
-  }, [timeSpent, documentId, isConfirmed])
+  // Conditia pentru deblocarea butonului de confirmare
+  const canConfirm = hasScrolledToBottom && !isConfirmed
 
   // Detecteaza scroll-to-bottom
   const handleScroll = () => {
@@ -112,26 +66,8 @@ export function DocumentViewer({
   // Handler pentru confirmare
   const handleConfirm = () => {
     if (canConfirm) {
-      // Opreste timer-ul
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
       onConfirm?.(documentId)
     }
-  }
-
-  // Calcul procent timp
-  const timePercent = Math.min(100, (timeSpent / minimumReadingSeconds) * 100)
-
-  // Formatare timp ramas
-  const formatTimeRemaining = () => {
-    const remaining = Math.max(0, minimumReadingSeconds - timeSpent)
-    const mins = Math.floor(remaining / 60)
-    const secs = remaining % 60
-    if (mins > 0) {
-      return `${mins}m ${secs}s`
-    }
-    return `${secs}s`
   }
 
   if (isConfirmed) {
@@ -163,36 +99,18 @@ export function DocumentViewer({
             <ScrollText className="h-5 w-5 text-muted-foreground" />
             <CardTitle className="text-lg">{title}</CardTitle>
           </div>
-          <div className="flex items-center gap-4">
-            {/* Indicator scroll */}
-            <div className="flex items-center gap-2 text-sm">
-              {hasScrolledToBottom ? (
-                <Badge variant="outline" className="border-success text-success gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Citit complet
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="gap-1">
-                  <ChevronDown className="h-3 w-3" />
-                  Deruleaza pana jos
-                </Badge>
-              )}
-            </div>
-
-            {/* Indicator timp */}
-            <div className="flex items-center gap-2 text-sm">
-              {hasMinimumTime ? (
-                <Badge variant="outline" className="border-success text-success gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Timp minim atins
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatTimeRemaining()} ramase
-                </Badge>
-              )}
-            </div>
+          <div className="flex items-center gap-2 text-sm">
+            {hasScrolledToBottom ? (
+              <Badge variant="outline" className="border-success text-success gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Citit complet
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="gap-1">
+                <ChevronDown className="h-3 w-3" />
+                Deruleaza pana jos
+              </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -223,25 +141,13 @@ export function DocumentViewer({
 
         {/* Progress and confirm section */}
         <div className="border-t p-4 space-y-4">
-          {/* Progress bars */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Scroll progress - simple indicator */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Progres citire</span>
-                <span>{hasScrolledToBottom ? '100%' : 'Deruleaza...'}</span>
-              </div>
-              <Progress value={hasScrolledToBottom ? 100 : 30} className="h-2" />
+          {/* Scroll progress */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Progres citire</span>
+              <span>{hasScrolledToBottom ? '100%' : 'Deruleaza...'}</span>
             </div>
-
-            {/* Time progress */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Timp de citire</span>
-                <span>{Math.floor(timeSpent)}s / {minimumReadingSeconds}s</span>
-              </div>
-              <Progress value={timePercent} className="h-2" />
-            </div>
+            <Progress value={hasScrolledToBottom ? 100 : 30} className="h-2" />
           </div>
 
           {/* Confirm button */}
@@ -259,11 +165,7 @@ export function DocumentViewer({
             ) : (
               <>
                 <Lock className="h-4 w-4 mr-2" />
-                {!hasScrolledToBottom && !hasMinimumTime
-                  ? 'Cititi documentul complet si asteptati timer-ul'
-                  : !hasScrolledToBottom
-                    ? 'Derulati pana la sfarsitul documentului'
-                    : `Asteptati inca ${formatTimeRemaining()}`}
+                Derulati pana la sfarsitul documentului
               </>
             )}
           </Button>

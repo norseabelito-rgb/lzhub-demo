@@ -249,7 +249,7 @@ GHID UTILIZARE ECHIPAMENT LASERZONE
 /**
  * URL video de training (placeholder - se va inlocui cu video real)
  */
-export const MOCK_VIDEO_URL = 'https://www.youtube.com/watch?v=QC8iQqtG0hg
+export const MOCK_VIDEO_URL = 'https://www.youtube.com/watch?v=QC8iQqtG0hg'
 
 export interface VideoChapter {
   timestamp: number // secunde

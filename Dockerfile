@@ -1,32 +1,24 @@
-FROM node:20-slim AS base
-
-# Install OpenSSL for Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+FROM node:20 AS base
 
 FROM base AS builder
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy only package.json (NO lockfile) to force fresh resolution on Linux
+COPY package.json ./
+
+# Fresh install resolves platform-specific native binaries for Linux
+RUN npm install && \
+    echo "=== Checking lightningcss ===" && \
+    ls node_modules/lightningcss-linux-x64-gnu/ 2>/dev/null && echo "OK: linux binary package found" || echo "MISSING: linux binary package" && \
+    ls node_modules/lightningcss/*.node 2>/dev/null && echo "OK: .node file found" || echo "MISSING: .node file"
+
+# Copy prisma files and generate client
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
-
-# Install dependencies - use npm install (not ci) so optional native
-# binaries for Linux get resolved even if lockfile was created on macOS
-RUN npm install --include=optional
-
-# Verify lightningcss native binary exists
-RUN ls -la node_modules/lightningcss/lightningcss.linux-x64-gnu.node 2>/dev/null || \
-    ls -la node_modules/lightningcss-linux-x64-gnu/ 2>/dev/null || \
-    echo "WARNING: lightningcss linux binary not found!"
-
-# Generate Prisma client
 RUN npx prisma generate
 
-# Copy source code
+# Copy source code and build
 COPY . .
-
-# Build Next.js
 RUN npm run build
 
 # Production image

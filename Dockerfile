@@ -11,8 +11,14 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
-# Install ALL dependencies (including optional native binaries)
-RUN npm ci --include=optional
+# Install dependencies - use npm install (not ci) so optional native
+# binaries for Linux get resolved even if lockfile was created on macOS
+RUN npm install --include=optional
+
+# Verify lightningcss native binary exists
+RUN ls -la node_modules/lightningcss/lightningcss.linux-x64-gnu.node 2>/dev/null || \
+    ls -la node_modules/lightningcss-linux-x64-gnu/ 2>/dev/null || \
+    echo "WARNING: lightningcss linux binary not found!"
 
 # Generate Prisma client
 RUN npx prisma generate

@@ -76,68 +76,73 @@ export function ReservationModal({
 
   // Handle form submission
   const handleSubmit = useCallback(
-    (data: ReservationFormData) => {
-      // Find or create customer
-      let customerId: string
+    async (data: ReservationFormData) => {
+      try {
+        // Find or create customer
+        let customerId: string
 
-      // Search for existing customer by phone
-      const existingCustomers = searchCustomers(data.phone)
-      const existingCustomer = existingCustomers.find(
-        (c) => c.phone === data.phone
-      )
+        // Search for existing customer by phone
+        const existingCustomers = searchCustomers(data.phone)
+        const existingCustomer = existingCustomers.find(
+          (c) => c.phone === data.phone
+        )
 
-      if (existingCustomer) {
-        customerId = existingCustomer.id
-        // Optionally update customer name/email if changed
-      } else {
-        // Create new customer
-        customerId = createCustomer({
-          name: data.name,
-          phone: data.phone,
-          email: data.email || undefined,
-          tags: [],
-          notes: undefined,
-        })
-        toast.success('Client nou creat')
-      }
-
-      if (mode === 'create') {
-        // Create new reservation
-        const result = createReservation({
-          customerId,
-          date: data.date,
-          startTime: data.startTime,
-          endTime: calculateEndTime(data.startTime),
-          partySize: data.partySize,
-          occasion: data.occasion,
-          notes: data.notes || undefined,
-          status: 'confirmed',
-          createdBy: 'current-user', // Would be actual user ID
-        })
-
-        if (result.hasConflict && !data.overrideConflict) {
-          toast.warning('Rezervare creata cu avertisment de conflict', {
-            description: result.conflictReason,
-          })
+        if (existingCustomer) {
+          customerId = existingCustomer.id
         } else {
-          toast.success('Rezervare creata cu succes')
+          // Create new customer
+          customerId = await createCustomer({
+            name: data.name,
+            phone: data.phone,
+            email: data.email || undefined,
+            tags: [],
+            notes: undefined,
+          })
+          toast.success('Client nou creat')
         }
-      } else if (reservation) {
-        // Update existing reservation
-        updateReservation(reservation.id, {
-          customerId,
-          date: data.date,
-          startTime: data.startTime,
-          endTime: calculateEndTime(data.startTime),
-          partySize: data.partySize,
-          occasion: data.occasion,
-          notes: data.notes || undefined,
-          conflictOverridden: data.overrideConflict || false,
-        })
-        toast.success('Rezervare actualizata')
-      }
 
-      onOpenChange(false)
+        if (mode === 'create') {
+          // Create new reservation
+          const result = await createReservation({
+            customerId,
+            date: data.date,
+            startTime: data.startTime,
+            endTime: calculateEndTime(data.startTime),
+            partySize: data.partySize,
+            occasion: data.occasion,
+            notes: data.notes || undefined,
+            status: 'confirmed',
+            createdBy: 'current-user',
+          })
+
+          if (result.hasConflict && !data.overrideConflict) {
+            toast.warning('Rezervare creata cu avertisment de conflict', {
+              description: result.conflictReason,
+            })
+          } else {
+            toast.success('Rezervare creata cu succes')
+          }
+        } else if (reservation) {
+          // Update existing reservation
+          await updateReservation(reservation.id, {
+            customerId,
+            date: data.date,
+            startTime: data.startTime,
+            endTime: calculateEndTime(data.startTime),
+            partySize: data.partySize,
+            occasion: data.occasion,
+            notes: data.notes || undefined,
+            conflictOverridden: data.overrideConflict || false,
+          })
+          toast.success('Rezervare actualizata')
+        }
+
+        onOpenChange(false)
+      } catch (err) {
+        toast.error('Eroare', {
+          description: (err as Error).message,
+        })
+      }
     },
     [
       mode,
@@ -151,22 +156,34 @@ export function ReservationModal({
   )
 
   // Handle cancel (soft delete)
-  const handleCancelReservation = useCallback(() => {
+  const handleCancelReservation = useCallback(async () => {
     if (reservation) {
-      cancelReservation(reservation.id)
-      toast.success('Rezervare anulata')
-      setShowCancelConfirm(false)
-      onOpenChange(false)
+      try {
+        await cancelReservation(reservation.id)
+        toast.success('Rezervare anulata')
+        setShowCancelConfirm(false)
+        onOpenChange(false)
+      } catch (err) {
+        toast.error('Eroare la anulare', {
+          description: (err as Error).message,
+        })
+      }
     }
   }, [reservation, cancelReservation, onOpenChange])
 
   // Handle delete (hard delete)
-  const handleDeleteReservation = useCallback(() => {
+  const handleDeleteReservation = useCallback(async () => {
     if (reservation) {
-      deleteReservation(reservation.id)
-      toast.success('Rezervare stearsa permanent')
-      setShowDeleteConfirm(false)
-      onOpenChange(false)
+      try {
+        await deleteReservation(reservation.id)
+        toast.success('Rezervare stearsa permanent')
+        setShowDeleteConfirm(false)
+        onOpenChange(false)
+      } catch (err) {
+        toast.error('Eroare la stergere', {
+          description: (err as Error).message,
+        })
+      }
     }
   }, [reservation, deleteReservation, onOpenChange])
 

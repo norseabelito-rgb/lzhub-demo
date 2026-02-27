@@ -27,15 +27,25 @@ export default function QRRedirectPage() {
   const router = useRouter()
   const params = useParams()
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
-  const { getTemplateById, createInstance, instances } = useChecklistStore()
+  const { getTemplateById, createInstance, instances, fetchTemplates, fetchInstances } = useChecklistStore()
 
   const [hasAttemptedCreation, setHasAttemptedCreation] = useState(false)
   const [createdInstanceId, setCreatedInstanceId] = useState<string | null>(null)
   const [creationError, setCreationError] = useState(false)
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   const templateId = params.code as string
 
-  // Derive template and existing instance from store (not in effect)
+  // Fetch data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      await Promise.all([fetchTemplates(), fetchInstances()])
+      setDataLoaded(true)
+    }
+    loadData()
+  }, [fetchTemplates, fetchInstances])
+
+  // Derive template and existing instance from store
   const template = useMemo(
     () => getTemplateById(templateId),
     [getTemplateById, templateId]
@@ -56,15 +66,16 @@ export default function QRRedirectPage() {
 
   // Compute derived state based on auth/template status
   const derivedState = useMemo<RedirectState>(() => {
-    if (authLoading) return 'loading'
+    if (authLoading || !dataLoaded) return 'loading'
     if (!isAuthenticated || !user) return 'not-authenticated'
-    if (!template) return 'template-not-found'
+    if (!template && dataLoaded) return 'template-not-found'
     if (creationError) return 'template-not-found'
     if (existingInstance || createdInstanceId) return 'redirecting'
     if (hasAttemptedCreation) return 'creating-instance'
     return 'creating-instance'
   }, [
     authLoading,
+    dataLoaded,
     isAuthenticated,
     user,
     template,
@@ -75,7 +86,7 @@ export default function QRRedirectPage() {
   ])
 
   // Handle instance creation and redirect
-  const handleCreateAndRedirect = useCallback(() => {
+  const handleCreateAndRedirect = useCallback(async () => {
     if (!user || !template || hasAttemptedCreation) return
 
     setHasAttemptedCreation(true)
@@ -86,9 +97,9 @@ export default function QRRedirectPage() {
       return
     }
 
-    // Create new instance for today
+    // Create new instance for today (async)
     try {
-      const instanceId = createInstance(templateId, user.id, today)
+      const instanceId = await createInstance(templateId, user.id, today)
       setCreatedInstanceId(instanceId)
       router.replace(`/checklists/${instanceId}`)
     } catch (error) {
@@ -108,20 +119,17 @@ export default function QRRedirectPage() {
 
   // Effect only triggers navigation, no state setting
   useEffect(() => {
-    // Only proceed when we have auth data and a valid template
-    if (authLoading || !isAuthenticated || !user || !template) return
+    if (authLoading || !dataLoaded || !isAuthenticated || !user || !template) return
 
-    // Small delay to ensure UI renders before navigation
     const timeoutId = setTimeout(() => {
       handleCreateAndRedirect()
     }, 100)
 
     return () => clearTimeout(timeoutId)
-  }, [authLoading, isAuthenticated, user, template, handleCreateAndRedirect])
+  }, [authLoading, dataLoaded, isAuthenticated, user, template, handleCreateAndRedirect])
 
   // Handle login redirect
   const handleLogin = () => {
-    // Store the return URL in sessionStorage for after login
     sessionStorage.setItem('qr-redirect', `/qr/${templateId}`)
     router.push('/login')
   }

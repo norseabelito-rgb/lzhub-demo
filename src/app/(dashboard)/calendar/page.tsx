@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
-import { format, startOfWeek, startOfMonth, endOfMonth, endOfWeek } from 'date-fns'
-import { useReservationStore, type Reservation } from '@/lib/calendar'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { format, startOfWeek, startOfMonth, endOfMonth, endOfWeek, eachDayOfInterval } from 'date-fns'
+import { useReservationStore, useCustomerStore, type Reservation } from '@/lib/calendar'
 import {
   CalendarHeader,
   DayView,
@@ -81,6 +81,44 @@ export default function CalendarPage() {
   const getReservationsForDateRange = useReservationStore(
     (state) => state.getReservationsForDateRange
   )
+  const fetchReservations = useReservationStore((state) => state.fetchReservations)
+  const fetchCapacitySettings = useReservationStore((state) => state.fetchCapacitySettings)
+  const fetchCustomers = useCustomerStore((state) => state.fetchCustomers)
+  const fetchTags = useCustomerStore((state) => state.fetchTags)
+
+  // ---- Fetch initial data ----
+  useEffect(() => {
+    fetchCustomers()
+    fetchTags()
+    fetchCapacitySettings()
+  }, [fetchCustomers, fetchTags, fetchCapacitySettings])
+
+  // ---- Fetch reservations when date/view changes ----
+  useEffect(() => {
+    switch (currentView) {
+      case 'day': {
+        const dateStr = format(currentDate, 'yyyy-MM-dd')
+        fetchReservations(dateStr)
+        break
+      }
+      case 'week': {
+        const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
+        const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 })
+        const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
+        days.forEach((day) => fetchReservations(format(day, 'yyyy-MM-dd')))
+        break
+      }
+      case 'month': {
+        const monthStart = startOfMonth(currentDate)
+        const monthEnd = endOfMonth(currentDate)
+        const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+        const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+        const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+        days.forEach((day) => fetchReservations(format(day, 'yyyy-MM-dd')))
+        break
+      }
+    }
+  }, [currentDate, currentView, fetchReservations])
 
   // ---- Debounced date navigation ----
   const handleDateChange = useCallback((date: Date) => {

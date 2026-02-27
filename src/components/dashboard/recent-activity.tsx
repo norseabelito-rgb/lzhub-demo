@@ -6,7 +6,7 @@ import {
   AlertTriangle,
   LogIn,
 } from 'lucide-react'
-import type { ActivityItem } from '@/lib/mock-data/dashboard'
+import type { ActivityItem } from '@/lib/dashboard'
 
 interface RecentActivityProps {
   activities: ActivityItem[]

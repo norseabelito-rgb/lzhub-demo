@@ -64,10 +64,10 @@ export function PhysicalHandoffForm({
 
     try {
       // Load the employee's progress first to make sure we have the right one
-      loadProgress(employeeId)
+      await loadProgress(employeeId)
 
       // Mark handoff with manager signature
-      managerMarkHandoff({
+      await managerMarkHandoff({
         dataUrl: signatureDataUrl,
         signedBy: user.id,
         signerName: user.name,

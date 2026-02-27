@@ -67,27 +67,27 @@ export function TagManager({
   )
 
   // Handle adding existing tag
-  const handleAddTag = (tagId: string) => {
-    addTagToCustomer(customerId, tagId)
+  const handleAddTag = async (tagId: string) => {
+    await addTagToCustomer(customerId, tagId)
     setIsAddOpen(false)
   }
 
   // Handle removing tag
-  const handleRemoveTag = (tagId: string) => {
-    removeTagFromCustomer(customerId, tagId)
+  const handleRemoveTag = async (tagId: string) => {
+    await removeTagFromCustomer(customerId, tagId)
   }
 
   // Handle creating new tag
-  const handleCreateTag = () => {
+  const handleCreateTag = async () => {
     if (!newTagName.trim()) return
 
-    const newTagId = addTag({
+    const newTagId = await addTag({
       name: newTagName.trim(),
       color: newTagColor,
     })
 
     // Also add to this customer
-    addTagToCustomer(customerId, newTagId)
+    await addTagToCustomer(customerId, newTagId)
 
     // Reset and close
     setNewTagName('')

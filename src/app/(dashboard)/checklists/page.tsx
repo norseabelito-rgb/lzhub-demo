@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
-import { ArrowLeft, ListChecks, Settings2, History, FileText, QrCode } from 'lucide-react'
+import { ArrowLeft, ListChecks, Settings2, History, FileText, QrCode, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { useChecklistStore } from '@/lib/checklist'
@@ -19,7 +20,13 @@ import { MyChecklists } from '@/components/checklists/my-checklists'
 export default function ChecklistsPage() {
   const router = useRouter()
   const { user, isManager } = useAuth()
-  const { instances, templates } = useChecklistStore()
+  const { instances, templates, isLoading, fetchTemplates, fetchInstances } = useChecklistStore()
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchTemplates()
+    fetchInstances()
+  }, [fetchTemplates, fetchInstances])
 
   // Get today's date in ISO format
   const today = format(new Date(), 'yyyy-MM-dd')
@@ -106,17 +113,27 @@ export default function ChecklistsPage() {
         </div>
       </div>
 
+      {/* Loading state */}
+      {isLoading && instances.length === 0 && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Se incarca checklisturile...</span>
+        </div>
+      )}
+
       {/* My Checklists Section */}
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">
-          {isManager ? 'Checklisturile mele' : 'Checklisturi pentru azi'}
-        </h2>
-        <MyChecklists
-          instances={myInstances}
-          templates={templates}
-          onSelect={handleSelectChecklist}
-        />
-      </section>
+      {!isLoading && (
+        <section>
+          <h2 className="mb-4 text-lg font-semibold">
+            {isManager ? 'Checklisturile mele' : 'Checklisturi pentru azi'}
+          </h2>
+          <MyChecklists
+            instances={myInstances}
+            templates={templates}
+            onSelect={handleSelectChecklist}
+          />
+        </section>
+      )}
 
       {/* Floating Action Button for QR Scan - Mobile optimized */}
       <Link

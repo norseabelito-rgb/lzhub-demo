@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import type { QuizQuestion as QuizQuestionType, QuizOption } from '@/lib/onboarding/mock-data'
+import type { QuizQuestion as QuizQuestionType, QuizOption } from '@/lib/onboarding/content'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 

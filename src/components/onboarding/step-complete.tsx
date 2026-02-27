@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useOnboardingStore } from '@/lib/onboarding/onboarding-store'
-import { useAuthStore } from '@/lib/auth'
+import { useAuth } from '@/lib/auth'
 
 export interface StepCompleteProps {
   /** Callback when user clicks to go to dashboard */
@@ -27,7 +27,7 @@ export interface StepCompleteProps {
  */
 export function StepComplete({ onGoToDashboard, className }: StepCompleteProps) {
   const { currentProgress, completeOnboarding } = useOnboardingStore()
-  const markOnboardingComplete = useAuthStore(state => state.markOnboardingComplete)
+  const { markOnboardingComplete } = useAuth()
   const confettiFiredRef = useRef(false)
 
   // Fire confetti on mount (once)
@@ -37,12 +37,12 @@ export function StepComplete({ onGoToDashboard, className }: StepCompleteProps) 
 
     // Mark onboarding as complete if not already
     if (currentProgress && !currentProgress.isComplete) {
-      completeOnboarding()
-
-      // Sync to auth store - marks user.isNew = false
-      if (currentProgress.employeeId) {
-        markOnboardingComplete(currentProgress.employeeId)
-      }
+      completeOnboarding().then(() => {
+        // Sync to auth store - marks user.isNew = false
+        if (currentProgress.employeeId) {
+          markOnboardingComplete(currentProgress.employeeId)
+        }
+      })
     }
 
     // Fire confetti celebration

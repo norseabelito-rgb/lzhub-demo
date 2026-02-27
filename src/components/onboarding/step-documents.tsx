@@ -19,8 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useOnboardingStore } from '@/lib/onboarding'
-import { MOCK_DOCUMENTS, type TrainingDocument } from '@/lib/onboarding/mock-data'
+import { useOnboardingStore, TRAINING_DOCUMENTS, type TrainingDocument } from '@/lib/onboarding'
 import { DocumentViewer } from './document-viewer'
 
 export interface StepDocumentsProps {
@@ -55,7 +54,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
 
   // Get document statuses from store
   const getDocumentStatuses = (): DocumentStatus[] => {
-    return MOCK_DOCUMENTS.map((doc) => {
+    return TRAINING_DOCUMENTS.map((doc) => {
       const progress = currentProgress?.documents.find((d) => d.documentId === doc.id)
       return {
         document: doc,
@@ -68,7 +67,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
 
   const documentStatuses = getDocumentStatuses()
   const confirmedCount = documentStatuses.filter((d) => d.isConfirmed).length
-  const totalCount = MOCK_DOCUMENTS.length
+  const totalCount = TRAINING_DOCUMENTS.length
   const progressPercent = (confirmedCount / totalCount) * 100
   const allConfirmed = areAllDocumentsConfirmed()
 
@@ -84,8 +83,8 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
   }
 
   // Handle document confirmation
-  const handleConfirmDocument = (documentId: string) => {
-    confirmDocument(documentId)
+  const handleConfirmDocument = async (documentId: string) => {
+    await confirmDocument(documentId)
     handleCloseDocument()
   }
 
@@ -99,7 +98,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
 
   // Get active document
   const activeDocument = activeDocumentId
-    ? MOCK_DOCUMENTS.find((d) => d.id === activeDocumentId)
+    ? TRAINING_DOCUMENTS.find((d) => d.id === activeDocumentId)
     : null
   const activeStatus = activeDocumentId
     ? documentStatuses.find((d) => d.document.id === activeDocumentId)

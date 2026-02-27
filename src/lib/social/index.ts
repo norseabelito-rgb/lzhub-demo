@@ -29,12 +29,3 @@ export type {
   HashtagSetFormData,
   LibraryItemFormData,
 } from './validation'
-
-// Mock Data
-export {
-  MOCK_POSTS,
-  MOCK_CAPTION_TEMPLATES,
-  MOCK_HASHTAG_SETS,
-  MOCK_CONTENT_LIBRARY,
-  initializeMockData,
-} from './mock-data'

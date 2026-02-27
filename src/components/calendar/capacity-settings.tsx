@@ -50,18 +50,24 @@ export function CapacitySettings({ onSave }: CapacitySettingsProps) {
   }, [capacitySettings])
 
   // Handle save
-  const handleSave = () => {
-    updateCapacitySettings({
-      defaultCapacity: capacity,
-      warningThreshold: warningThreshold / 100,
-      criticalThreshold: criticalThreshold / 100,
-    })
+  const handleSave = async () => {
+    try {
+      await updateCapacitySettings({
+        defaultCapacity: capacity,
+        warningThreshold: warningThreshold / 100,
+        criticalThreshold: criticalThreshold / 100,
+      })
 
-    toast.success('Setari salvate', {
-      description: 'Configuratia capacitatii a fost actualizata.',
-    })
+      toast.success('Setari salvate', {
+        description: 'Configuratia capacitatii a fost actualizata.',
+      })
 
-    onSave?.()
+      onSave?.()
+    } catch (err) {
+      toast.error('Eroare la salvare', {
+        description: (err as Error).message,
+      })
+    }
   }
 
   // Handle reset to defaults

@@ -23,14 +23,3 @@ export type { ChecklistStore, TimeWindowResult } from './checklist-store'
 
 export { useAuditStore } from './audit-store'
 export type { AuditStore } from './audit-store'
-
-// Mock data (for development/testing)
-export {
-  MOCK_TEMPLATES,
-  MOCK_INSTANCES,
-  MOCK_AUDIT_LOG,
-  getMockTemplateById,
-  getMockInstanceById,
-  getMockInstancesForDate,
-  getMockInstancesForUser,
-} from './mock-data'

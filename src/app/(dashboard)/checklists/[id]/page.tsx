@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, AlertCircle } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth'
 import { useChecklistStore } from '@/lib/checklist'
@@ -19,9 +19,15 @@ export default function ChecklistDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user, isManager } = useAuth()
-  const { instances, templates } = useChecklistStore()
+  const { instances, templates, isLoading, fetchTemplates, fetchInstances } = useChecklistStore()
 
   const instanceId = params?.id as string
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchTemplates()
+    fetchInstances()
+  }, [fetchTemplates, fetchInstances])
 
   // Find instance and template
   const instance = instances.find((i) => i.id === instanceId)
@@ -44,10 +50,11 @@ export default function ChecklistDetailPage() {
   }, [instance, user, hasAccess, router])
 
   // Loading state
-  if (!user) {
+  if (!user || isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">Se incarca...</p>
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Se incarca...</span>
       </div>
     )
   }

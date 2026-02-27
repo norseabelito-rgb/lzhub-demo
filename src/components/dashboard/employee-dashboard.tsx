@@ -1,24 +1,21 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { StatsCard } from './stats-card'
-import { TodayTasks } from './today-tasks'
 import { QuickActions } from './quick-actions'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import {
-  EMPLOYEE_STATS,
-  EMPLOYEE_TODAY_TASKS,
+  useDashboardStore,
   EMPLOYEE_QUICK_ACTIONS,
-} from '@/lib/mock-data/dashboard'
+} from '@/lib/dashboard'
 
 export function EmployeeDashboard() {
   const { user } = useAuth()
+  const { stats, isLoadingStats, fetchStats } = useDashboardStore()
 
-  // Calculate progress for tasks
-  const completedTasks = EMPLOYEE_TODAY_TASKS.filter((t) => t.completed).length
-  const totalTasks = EMPLOYEE_TODAY_TASKS.length
-  const progressPercent = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   return (
     <div className="space-y-6">
@@ -32,36 +29,21 @@ export function EmployeeDashboard() {
         </p>
       </div>
 
-      {/* Progress card */}
-      <Card className="border-glow">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg text-primary">Progresul tau azi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Task-uri completate</span>
-              <span className="font-medium">
-                {completedTasks} / {totalTasks}
-              </span>
-            </div>
-            <Progress value={progressPercent} className="h-2" />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Stats grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {EMPLOYEE_STATS.map((stat, index) => (
-          <StatsCard key={index} stat={stat} />
-        ))}
+        {isLoadingStats && stats.length === 0 ? (
+          <p className="text-muted-foreground col-span-full text-center py-4">
+            Se incarca statisticile...
+          </p>
+        ) : (
+          stats.map((stat, index) => (
+            <StatsCard key={index} stat={stat} />
+          ))
+        )}
       </div>
 
       {/* Main content grid */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Today's tasks */}
-        <TodayTasks tasks={EMPLOYEE_TODAY_TASKS} title="Checklisturi de azi" />
-
         {/* Quick actions */}
         <QuickActions actions={EMPLOYEE_QUICK_ACTIONS} />
       </div>

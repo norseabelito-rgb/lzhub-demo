@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   Check,
 } from 'lucide-react'
-import type { TodayTask } from '@/lib/mock-data/dashboard'
+import type { TodayTask } from '@/lib/dashboard'
 
 interface TodayTasksProps {
   tasks: TodayTask[]

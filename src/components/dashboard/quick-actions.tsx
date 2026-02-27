@@ -8,7 +8,7 @@ import {
   FolderOpen,
   LucideIcon,
 } from 'lucide-react'
-import type { QuickAction } from '@/lib/mock-data/dashboard'
+import type { QuickAction } from '@/lib/dashboard'
 
 interface QuickActionsProps {
   actions: QuickAction[]

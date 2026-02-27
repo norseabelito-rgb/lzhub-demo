@@ -1,10 +1,9 @@
 /**
  * Checklist store for LaserZone Hub
- * Manages templates and instances with audit logging for every action
+ * Uses Zustand for UI state + async API calls for data
  */
 
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
 import { isWithinInterval, setHours, setMinutes, startOfDay, addMinutes } from 'date-fns'
 import type {
   ChecklistTemplate,
@@ -12,10 +11,133 @@ import type {
   ChecklistItem,
   ItemCompletion,
 } from './types'
-import { MOCK_TEMPLATES, MOCK_INSTANCES } from './mock-data'
-import { useAuditStore } from './audit-store'
+import { api, ApiError } from '@/lib/api-client'
 
-const CHECKLIST_STORAGE_KEY = 'laserzone-checklists'
+// ============================================================================
+// API Response Types (Prisma shapes)
+// ============================================================================
+
+interface ApiTemplateItem {
+  id: string
+  label: string
+  description: string | null
+  isRequired: boolean
+  order: number
+}
+
+interface ApiTemplate {
+  id: string
+  name: string
+  description: string
+  type: string
+  timeWindowStartHour: number
+  timeWindowStartMinute: number
+  timeWindowEndHour: number
+  timeWindowEndMinute: number
+  allowLateCompletion: boolean
+  lateWindowMinutes: number | null
+  assignedTo: string
+  createdBy: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  items: ApiTemplateItem[]
+}
+
+interface ApiCompletion {
+  id: string
+  itemId: string
+  checkedById: string
+  isLate: boolean
+  notes: string | null
+  createdAt: string
+  checkedBy?: { id: string; name: string }
+  item?: ApiTemplateItem
+}
+
+interface ApiInstance {
+  id: string
+  templateId: string
+  templateName: string
+  date: string
+  assignedToId: string
+  status: string
+  startedAt: string | null
+  completedAt: string | null
+  createdAt: string
+  completions: ApiCompletion[]
+  template: ApiTemplate
+  assignedTo: { id: string; name: string; email: string }
+}
+
+// ============================================================================
+// Data Mapping Functions
+// ============================================================================
+
+function mapApiTemplate(t: ApiTemplate): ChecklistTemplate {
+  let assignedTo: ChecklistTemplate['assignedTo']
+  try {
+    const parsed = JSON.parse(t.assignedTo)
+    if (Array.isArray(parsed)) {
+      assignedTo = parsed
+    } else {
+      assignedTo = t.assignedTo as 'all' | 'shift'
+    }
+  } catch {
+    assignedTo = (t.assignedTo || 'all') as 'all' | 'shift'
+  }
+
+  return {
+    id: t.id,
+    name: t.name,
+    description: t.description,
+    type: t.type as ChecklistTemplate['type'],
+    items: t.items.map((item): ChecklistItem => ({
+      id: item.id,
+      text: item.label,
+      order: item.order,
+      required: item.isRequired,
+    })),
+    timeWindow: {
+      startHour: t.timeWindowStartHour,
+      startMinute: t.timeWindowStartMinute,
+      endHour: t.timeWindowEndHour,
+      endMinute: t.timeWindowEndMinute,
+      allowLateCompletion: t.allowLateCompletion,
+      lateWindowMinutes: t.lateWindowMinutes ?? undefined,
+    },
+    assignedTo,
+    createdBy: t.createdBy,
+    createdAt: new Date(t.createdAt),
+    updatedAt: new Date(t.updatedAt),
+  }
+}
+
+function mapApiInstance(inst: ApiInstance): ChecklistInstance {
+  return {
+    id: inst.id,
+    templateId: inst.templateId,
+    templateName: inst.templateName,
+    date: inst.date,
+    assignedTo: inst.assignedToId,
+    status: inst.status as ChecklistInstance['status'],
+    items: inst.template.items.map((item): ChecklistItem => ({
+      id: item.id,
+      text: item.label,
+      order: item.order,
+      required: item.isRequired,
+    })),
+    completions: inst.completions.map((c): ItemCompletion => ({
+      itemId: c.itemId,
+      completedBy: c.checkedById,
+      completedAt: new Date(c.createdAt),
+      wasLate: c.isLate,
+      notes: c.notes ?? undefined,
+    })),
+    startedAt: inst.startedAt ? new Date(inst.startedAt) : undefined,
+    completedAt: inst.completedAt ? new Date(inst.completedAt) : undefined,
+  }
+}
 
 // ============================================================================
 // Time Window Validation Helper
@@ -27,9 +149,6 @@ export interface TimeWindowResult {
   reason?: string
 }
 
-/**
- * Check if current time is within the template's time window
- */
 export function isWithinTimeWindow(
   template: ChecklistTemplate,
   currentTime: Date = new Date()
@@ -40,7 +159,6 @@ export function isWithinTimeWindow(
   const windowStart = setMinutes(setHours(today, timeWindow.startHour), timeWindow.startMinute)
   const windowEnd = setMinutes(setHours(today, timeWindow.endHour), timeWindow.endMinute)
 
-  // Check if within main window
   const isInMainWindow = isWithinInterval(currentTime, {
     start: windowStart,
     end: windowEnd,
@@ -50,7 +168,6 @@ export function isWithinTimeWindow(
     return { allowed: true, isLate: false }
   }
 
-  // Before window starts
   if (currentTime < windowStart) {
     return {
       allowed: false,
@@ -59,10 +176,8 @@ export function isWithinTimeWindow(
     }
   }
 
-  // After window ends - check for late completion allowance
   if (currentTime > windowEnd) {
     if (timeWindow.allowLateCompletion) {
-      // Check if within grace period
       const graceEnd = addMinutes(windowEnd, timeWindow.lateWindowMinutes || 0)
 
       if (currentTime <= graceEnd) {
@@ -73,7 +188,6 @@ export function isWithinTimeWindow(
         }
       }
 
-      // If grace period is very long or undefined, still allow but mark as late
       if (!timeWindow.lateWindowMinutes) {
         return {
           allowed: true,
@@ -101,19 +215,34 @@ interface ChecklistState {
   templates: ChecklistTemplate[]
   instances: ChecklistInstance[]
   isLoading: boolean
+  error: string | null
 }
 
 interface ChecklistActions {
+  // Data fetching
+  fetchTemplates: () => Promise<void>
+  fetchInstances: (params?: { date?: string; userId?: string; status?: string }) => Promise<void>
+
   // Template CRUD
-  createTemplate: (
-    template: Omit<ChecklistTemplate, 'id' | 'createdAt' | 'updatedAt'>
-  ) => string
-  updateTemplate: (id: string, updates: Partial<ChecklistTemplate>) => void
-  deleteTemplate: (id: string) => void
+  createTemplate: (data: {
+    name: string
+    description?: string
+    type: string
+    items: { label: string; description?: string; isRequired?: boolean; order: number }[]
+    timeWindowStartHour?: number
+    timeWindowStartMinute?: number
+    timeWindowEndHour?: number
+    timeWindowEndMinute?: number
+    allowLateCompletion?: boolean
+    lateWindowMinutes?: number
+    assignedTo?: string | string[]
+  }) => Promise<string>
+  updateTemplate: (id: string, data: Record<string, unknown>) => Promise<void>
+  deleteTemplate: (id: string) => Promise<void>
   getTemplateById: (id: string) => ChecklistTemplate | undefined
 
   // Instance management
-  createInstance: (templateId: string, assignedTo: string, date: string) => string
+  createInstance: (templateId: string, assignedToId: string, date: string) => Promise<string>
   getInstanceById: (id: string) => ChecklistInstance | undefined
   getInstancesForUser: (userId: string) => ChecklistInstance[]
   getInstancesForDate: (date: string) => ChecklistInstance[]
@@ -123,17 +252,21 @@ interface ChecklistActions {
     instanceId: string,
     itemId: string,
     userId: string,
-    userName: string
-  ) => { success: boolean; wasLate: boolean; error?: string }
+    userName: string,
+    notes?: string
+  ) => Promise<{ success: boolean; wasLate: boolean; error?: string }>
   uncheckItem: (
     instanceId: string,
     itemId: string,
     userId: string,
     userName: string
-  ) => void
+  ) => Promise<void>
 
   // Time validation
   isWithinTimeWindow: (template: ChecklistTemplate) => TimeWindowResult
+
+  // Error handling
+  clearError: () => void
 }
 
 export type ChecklistStore = ChecklistState & ChecklistActions
@@ -142,333 +275,240 @@ export type ChecklistStore = ChecklistState & ChecklistActions
 // Store Implementation
 // ============================================================================
 
-export const useChecklistStore = create<ChecklistStore>()(
-  persist(
-    (set, get) => ({
-      // Initial state with mock data
-      templates: MOCK_TEMPLATES,
-      instances: MOCK_INSTANCES,
-      isLoading: false,
+export const useChecklistStore = create<ChecklistStore>()((set, get) => ({
+  templates: [],
+  instances: [],
+  isLoading: false,
+  error: null,
 
-      // ========== Template CRUD ==========
+  // ========== Data Fetching ==========
 
-      createTemplate: (templateData) => {
-        const id = crypto.randomUUID()
-        const now = new Date()
-
-        const template: ChecklistTemplate = {
-          ...templateData,
-          id,
-          createdAt: now,
-          updatedAt: now,
-        }
-
-        set((state) => ({
-          templates: [...state.templates, template],
-        }))
-
-        // Log to audit
-        useAuditStore.getState().addEntry({
-          userId: templateData.createdBy,
-          userName: 'Manager', // Will be resolved from auth context in real implementation
-          action: 'template_created',
-          entityType: 'template',
-          entityId: id,
-          details: {
-            templateName: template.name,
-            itemCount: template.items.length,
-            type: template.type,
-          },
-          wasWithinTimeWindow: true,
-        })
-
-        return id
-      },
-
-      updateTemplate: (id, updates) => {
-        const existingTemplate = get().templates.find((t) => t.id === id)
-        if (!existingTemplate) return
-
-        set((state) => ({
-          templates: state.templates.map((t) =>
-            t.id === id
-              ? { ...t, ...updates, updatedAt: new Date() }
-              : t
-          ),
-        }))
-
-        // Log to audit
-        useAuditStore.getState().addEntry({
-          userId: updates.createdBy || existingTemplate.createdBy,
-          userName: 'Manager',
-          action: 'template_updated',
-          entityType: 'template',
-          entityId: id,
-          details: {
-            templateName: existingTemplate.name,
-            updatedFields: Object.keys(updates),
-          },
-          wasWithinTimeWindow: true,
-        })
-      },
-
-      deleteTemplate: (id) => {
-        const template = get().templates.find((t) => t.id === id)
-        if (!template) return
-
-        set((state) => ({
-          templates: state.templates.filter((t) => t.id !== id),
-        }))
-
-        // Log to audit
-        useAuditStore.getState().addEntry({
-          userId: template.createdBy,
-          userName: 'Manager',
-          action: 'template_deleted',
-          entityType: 'template',
-          entityId: id,
-          details: {
-            templateName: template.name,
-          },
-          wasWithinTimeWindow: true,
-        })
-      },
-
-      getTemplateById: (id) => {
-        return get().templates.find((t) => t.id === id)
-      },
-
-      // ========== Instance Management ==========
-
-      createInstance: (templateId, assignedTo, date) => {
-        const template = get().templates.find((t) => t.id === templateId)
-        if (!template) {
-          throw new Error(`Template ${templateId} not found`)
-        }
-
-        const id = crypto.randomUUID()
-
-        // Copy items from template (denormalized to prevent corruption)
-        const instanceItems: ChecklistItem[] = template.items.map((item) => ({
-          ...item,
-        }))
-
-        const instance: ChecklistInstance = {
-          id,
-          templateId,
-          templateName: template.name, // Copy at creation time
-          date,
-          assignedTo,
-          status: 'pending',
-          items: instanceItems,
-          completions: [],
-        }
-
-        set((state) => ({
-          instances: [...state.instances, instance],
-        }))
-
-        // Log to audit
-        useAuditStore.getState().addEntry({
-          userId: template.createdBy,
-          userName: 'Manager',
-          action: 'instance_created',
-          entityType: 'instance',
-          entityId: id,
-          details: {
-            templateName: template.name,
-            assignedTo,
-            date,
-          },
-          wasWithinTimeWindow: true,
-        })
-
-        return id
-      },
-
-      getInstanceById: (id) => {
-        return get().instances.find((i) => i.id === id)
-      },
-
-      getInstancesForUser: (userId) => {
-        return get().instances.filter((i) => i.assignedTo === userId)
-      },
-
-      getInstancesForDate: (date) => {
-        return get().instances.filter((i) => i.date === date)
-      },
-
-      // ========== Item Completion ==========
-
-      checkItem: (instanceId, itemId, userId, userName) => {
-        const instance = get().instances.find((i) => i.id === instanceId)
-        if (!instance) {
-          return { success: false, wasLate: false, error: 'Instance not found' }
-        }
-
-        const item = instance.items.find((i) => i.id === itemId)
-        if (!item) {
-          return { success: false, wasLate: false, error: 'Item not found' }
-        }
-
-        // Check if already completed
-        const alreadyCompleted = instance.completions.some((c) => c.itemId === itemId)
-        if (alreadyCompleted) {
-          return { success: false, wasLate: false, error: 'Item already completed' }
-        }
-
-        // Get template for time window validation
-        const template = get().templates.find((t) => t.id === instance.templateId)
-        const timeResult = template
-          ? isWithinTimeWindow(template)
-          : { allowed: true, isLate: false }
-
-        if (!timeResult.allowed) {
-          // Log attempted action even if blocked
-          useAuditStore.getState().addEntry({
-            userId,
-            userName,
-            action: 'item_checked',
-            entityType: 'item',
-            entityId: itemId,
-            details: {
-              instanceId,
-              itemText: item.text,
-              blocked: true,
-              reason: timeResult.reason,
-            },
-            wasWithinTimeWindow: false,
-          })
-
-          return {
-            success: false,
-            wasLate: timeResult.isLate,
-            error: timeResult.reason,
-          }
-        }
-
-        const completion: ItemCompletion = {
-          itemId,
-          completedBy: userId,
-          completedAt: new Date(),
-          wasLate: timeResult.isLate,
-          notes: timeResult.isLate ? timeResult.reason : undefined,
-        }
-
-        // Update instance
-        const now = new Date()
-        const newCompletions = [...instance.completions, completion]
-        const allRequiredComplete = instance.items
-          .filter((i) => i.required)
-          .every((i) => newCompletions.some((c) => c.itemId === i.id))
-
-        const newStatus = allRequiredComplete ? 'completed' : 'in_progress'
-
-        set((state) => ({
-          instances: state.instances.map((i) =>
-            i.id === instanceId
-              ? {
-                  ...i,
-                  status: newStatus,
-                  completions: newCompletions,
-                  startedAt: i.startedAt || now,
-                  completedAt: newStatus === 'completed' ? now : undefined,
-                }
-              : i
-          ),
-        }))
-
-        // Log to audit
-        useAuditStore.getState().addEntry({
-          userId,
-          userName,
-          action: 'item_checked',
-          entityType: 'item',
-          entityId: itemId,
-          details: {
-            instanceId,
-            itemText: item.text,
-            wasLate: timeResult.isLate,
-          },
-          wasWithinTimeWindow: !timeResult.isLate,
-        })
-
-        // If checklist just completed, log that too
-        if (newStatus === 'completed') {
-          useAuditStore.getState().addEntry({
-            userId,
-            userName,
-            action: 'instance_completed',
-            entityType: 'instance',
-            entityId: instanceId,
-            details: {
-              templateName: instance.templateName,
-              completedItemsCount: newCompletions.length,
-              totalItemsCount: instance.items.length,
-            },
-            wasWithinTimeWindow: !timeResult.isLate,
-          })
-        }
-
-        return { success: true, wasLate: timeResult.isLate }
-      },
-
-      uncheckItem: (instanceId, itemId, userId, userName) => {
-        const instance = get().instances.find((i) => i.id === instanceId)
-        if (!instance) return
-
-        const item = instance.items.find((i) => i.id === itemId)
-        if (!item) return
-
-        const completion = instance.completions.find((c) => c.itemId === itemId)
-        if (!completion) return // Not completed, nothing to uncheck
-
-        // Remove completion
-        const newCompletions = instance.completions.filter((c) => c.itemId !== itemId)
-        const newStatus = newCompletions.length > 0 ? 'in_progress' : 'pending'
-
-        set((state) => ({
-          instances: state.instances.map((i) =>
-            i.id === instanceId
-              ? {
-                  ...i,
-                  status: newStatus,
-                  completions: newCompletions,
-                  completedAt: undefined, // Reset completion time
-                }
-              : i
-          ),
-        }))
-
-        // Log to audit
-        useAuditStore.getState().addEntry({
-          userId,
-          userName,
-          action: 'item_unchecked',
-          entityType: 'item',
-          entityId: itemId,
-          details: {
-            instanceId,
-            itemText: item.text,
-          },
-          wasWithinTimeWindow: true, // Unchecking is always allowed
-        })
-      },
-
-      // ========== Time Validation ==========
-
-      isWithinTimeWindow: (template) => {
-        return isWithinTimeWindow(template)
-      },
-    }),
-    {
-      name: CHECKLIST_STORAGE_KEY,
-      storage: createJSONStorage(() => localStorage),
-      // Persist templates and instances
-      partialize: (state) => ({
-        templates: state.templates,
-        instances: state.instances,
-      }),
+  fetchTemplates: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const data = await api<ApiTemplate[]>('/api/checklists/templates')
+      set({ templates: data.map(mapApiTemplate), isLoading: false })
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la incarcarea template-urilor'
+      set({ error: message, isLoading: false })
     }
-  )
-)
+  },
+
+  fetchInstances: async (params) => {
+    set({ isLoading: true, error: null })
+    try {
+      const searchParams = new URLSearchParams()
+      if (params?.date) searchParams.set('date', params.date)
+      if (params?.userId) searchParams.set('userId', params.userId)
+      if (params?.status) searchParams.set('status', params.status)
+
+      const qs = searchParams.toString()
+      const url = `/api/checklists/instances${qs ? `?${qs}` : ''}`
+      const data = await api<ApiInstance[]>(url)
+      set({ instances: data.map(mapApiInstance), isLoading: false })
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la incarcarea instantelor'
+      set({ error: message, isLoading: false })
+    }
+  },
+
+  // ========== Template CRUD ==========
+
+  createTemplate: async (data) => {
+    set({ isLoading: true, error: null })
+    try {
+      const result = await api<ApiTemplate>('/api/checklists/templates', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      const template = mapApiTemplate(result)
+      set((state) => ({
+        templates: [template, ...state.templates],
+        isLoading: false,
+      }))
+      return template.id
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la crearea template-ului'
+      set({ error: message, isLoading: false })
+      throw e
+    }
+  },
+
+  updateTemplate: async (id, data) => {
+    set({ isLoading: true, error: null })
+    try {
+      const result = await api<ApiTemplate>(`/api/checklists/templates/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+      const updated = mapApiTemplate(result)
+      set((state) => ({
+        templates: state.templates.map((t) => (t.id === id ? updated : t)),
+        isLoading: false,
+      }))
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la actualizarea template-ului'
+      set({ error: message, isLoading: false })
+      throw e
+    }
+  },
+
+  deleteTemplate: async (id) => {
+    set({ isLoading: true, error: null })
+    try {
+      await api<{ success: boolean }>(`/api/checklists/templates/${id}`, {
+        method: 'DELETE',
+      })
+      set((state) => ({
+        templates: state.templates.filter((t) => t.id !== id),
+        isLoading: false,
+      }))
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la stergerea template-ului'
+      set({ error: message, isLoading: false })
+      throw e
+    }
+  },
+
+  getTemplateById: (id) => {
+    return get().templates.find((t) => t.id === id)
+  },
+
+  // ========== Instance Management ==========
+
+  createInstance: async (templateId, assignedToId, date) => {
+    set({ isLoading: true, error: null })
+    try {
+      const result = await api<ApiInstance>('/api/checklists/instances', {
+        method: 'POST',
+        body: JSON.stringify({ templateId, assignedToId, date }),
+      })
+      const instance = mapApiInstance(result)
+      set((state) => ({
+        instances: [instance, ...state.instances],
+        isLoading: false,
+      }))
+      return instance.id
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la crearea instantei'
+      set({ error: message, isLoading: false })
+      throw e
+    }
+  },
+
+  getInstanceById: (id) => {
+    return get().instances.find((i) => i.id === id)
+  },
+
+  getInstancesForUser: (userId) => {
+    return get().instances.filter((i) => i.assignedTo === userId)
+  },
+
+  getInstancesForDate: (date) => {
+    return get().instances.filter((i) => i.date === date)
+  },
+
+  // ========== Item Completion ==========
+
+  checkItem: async (instanceId, itemId, _userId, _userName, notes) => {
+    try {
+      const result = await api<{
+        completion: { id: string; isLate: boolean }
+        instanceStatus: string
+        allRequiredDone: boolean
+        wasLate: boolean
+      }>(`/api/checklists/instances/${instanceId}/items/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ checked: true, notes }),
+      })
+
+      // Refetch this instance to get updated data
+      try {
+        const updated = await api<ApiInstance>(`/api/checklists/instances/${instanceId}`)
+        const mappedInstance = mapApiInstance(updated)
+        set((state) => ({
+          instances: state.instances.map((i) =>
+            i.id === instanceId ? mappedInstance : i
+          ),
+        }))
+      } catch {
+        // If refetch fails, do an optimistic update based on the response
+        set((state) => ({
+          instances: state.instances.map((i) => {
+            if (i.id !== instanceId) return i
+            return {
+              ...i,
+              status: result.instanceStatus as ChecklistInstance['status'],
+              completions: [
+                ...i.completions,
+                {
+                  itemId,
+                  completedBy: _userId,
+                  completedAt: new Date(),
+                  wasLate: result.wasLate,
+                  notes,
+                },
+              ],
+              startedAt: i.startedAt || new Date(),
+              completedAt: result.allRequiredDone ? new Date() : undefined,
+            }
+          }),
+        }))
+      }
+
+      return { success: true, wasLate: result.wasLate }
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la bifarea elementului'
+      return { success: false, wasLate: false, error: message }
+    }
+  },
+
+  uncheckItem: async (instanceId, itemId) => {
+    try {
+      const result = await api<{
+        instanceStatus: string
+        unchecked: boolean
+      }>(`/api/checklists/instances/${instanceId}/items/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ checked: false }),
+      })
+
+      // Refetch this instance to get updated data
+      try {
+        const updated = await api<ApiInstance>(`/api/checklists/instances/${instanceId}`)
+        const mappedInstance = mapApiInstance(updated)
+        set((state) => ({
+          instances: state.instances.map((i) =>
+            i.id === instanceId ? mappedInstance : i
+          ),
+        }))
+      } catch {
+        // Optimistic update
+        set((state) => ({
+          instances: state.instances.map((i) => {
+            if (i.id !== instanceId) return i
+            return {
+              ...i,
+              status: result.instanceStatus as ChecklistInstance['status'],
+              completions: i.completions.filter((c) => c.itemId !== itemId),
+              completedAt: undefined,
+            }
+          }),
+        }))
+      }
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'Eroare la debifarea elementului'
+      set({ error: message })
+    }
+  },
+
+  // ========== Time Validation ==========
+
+  isWithinTimeWindow: (template) => {
+    return isWithinTimeWindow(template)
+  },
+
+  // ========== Error Handling ==========
+
+  clearError: () => set({ error: null }),
+}))

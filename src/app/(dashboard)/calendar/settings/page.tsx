@@ -1,17 +1,24 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Settings, Clock, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { CapacitySettings } from '@/components/calendar'
+import { useReservationStore } from '@/lib/calendar'
 
 // ============================================================================
 // Page Component
 // ============================================================================
 
 function CalendarSettingsContent() {
+  const fetchCapacitySettings = useReservationStore((state) => state.fetchCapacitySettings)
+
+  useEffect(() => {
+    fetchCapacitySettings()
+  }, [fetchCapacitySettings])
   return (
     <div className="h-full">
       {/* Header */}

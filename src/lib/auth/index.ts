@@ -1,6 +1,7 @@
 // Types
 export type {
   UserRole,
+  ShiftType,
   User,
   AuthState,
   LoginCredentials,
@@ -8,7 +9,7 @@ export type {
   AuthStore,
 } from './types'
 
-// Store
+// Store (deprecated — thin wrapper around useAuth)
 export { useAuthStore } from './auth-store'
 
 // Hooks
@@ -19,5 +20,6 @@ export {
   useAuthLoading,
 } from './use-auth'
 
-// Mock data (for development)
-export { authenticateMockUser, getMockUserById, mockUsers } from './mock-users'
+// NOTE: Server-only exports (auth, signIn, signOut) are in ./auth-config
+// Import directly: import { auth } from '@/lib/auth/auth-config'
+// Do NOT re-export them here — they pull in Prisma/pg which breaks client bundles

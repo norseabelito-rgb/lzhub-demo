@@ -8,13 +8,7 @@
 import { useMemo, useCallback, useEffect } from 'react'
 import { X, Cloud } from 'lucide-react'
 import { useDriveStore } from '@/lib/drive/drive-store'
-import {
-  getMockRecentFiles,
-  getMockFilesInFolder,
-  getMockFoldersInFolder,
-  getMockFileById,
-} from '@/lib/drive/mock-data'
-import type { DriveFile } from '@/lib/drive/types'
+import type { DriveFile, DriveFolder } from '@/lib/drive/types'
 import {
   Dialog,
   DialogContent,
@@ -81,17 +75,9 @@ export function DrivePicker({ onSelect, onCancel }: DrivePickerProps) {
   const getSelectedFiles = useDriveStore((s) => s.getSelectedFiles)
 
   // Get files based on current tab and folder
-  const { files, folders } = useMemo(() => {
-    if (currentTab === 'recent') {
-      return {
-        files: getMockRecentFiles(),
-        folders: [],
-      }
-    }
-    return {
-      files: getMockFilesInFolder(currentFolderId),
-      folders: getMockFoldersInFolder(currentFolderId),
-    }
+  // No Drive API yet - return empty state
+  const { files, folders } = useMemo((): { files: DriveFile[]; folders: DriveFolder[] } => {
+    return { files: [], folders: [] }
   }, [currentTab, currentFolderId])
 
   // Filter files by search query
@@ -110,11 +96,11 @@ export function DrivePicker({ onSelect, onCancel }: DrivePickerProps) {
     )
   }, [folders, searchQuery])
 
-  // Get preview file
-  const previewFile = useMemo(() => {
+  // Get preview file - no Drive API yet
+  const previewFile = useMemo((): DriveFile | null => {
     if (!previewFileId) return null
-    return getMockFileById(previewFileId) || null
-  }, [previewFileId])
+    return filteredFiles.find((f) => f.id === previewFileId) || null
+  }, [previewFileId, filteredFiles])
 
   // Calculate previous/next for preview navigation
   const { onPrevious, onNext } = useMemo(() => {

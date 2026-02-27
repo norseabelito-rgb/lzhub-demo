@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,8 @@ import {
   CustomerSearch,
   CustomerProfile,
 } from '@/components/calendar'
-import type { Customer } from '@/lib/calendar'
+import { useCustomerStore, useReservationStore, type Customer } from '@/lib/calendar'
+import { format } from 'date-fns'
 
 // ============================================================================
 // Page Component
@@ -17,6 +18,16 @@ import type { Customer } from '@/lib/calendar'
 
 export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const fetchCustomers = useCustomerStore((state) => state.fetchCustomers)
+  const fetchTags = useCustomerStore((state) => state.fetchTags)
+  const fetchReservations = useReservationStore((state) => state.fetchReservations)
+
+  useEffect(() => {
+    fetchCustomers()
+    fetchTags()
+    // Fetch today's reservations for visit stats
+    fetchReservations(format(new Date(), 'yyyy-MM-dd'))
+  }, [fetchCustomers, fetchTags, fetchReservations])
 
   // Handle customer selection from search
   const handleSelectCustomer = (customer: Customer) => {

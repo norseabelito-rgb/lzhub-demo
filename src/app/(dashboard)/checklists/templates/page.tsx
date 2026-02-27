@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { AuthGuard } from '@/components/auth'
 import { TemplateList, TemplateForm, QRCodeDisplay, type TemplateFormData } from '@/components/checklists'
@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-// AlertDialog can be added to ui/ later if needed
 import { useChecklistStore } from '@/lib/checklist/checklist-store'
 import { useAuth } from '@/lib/auth'
 import type { ChecklistTemplate } from '@/lib/checklist/types'
@@ -19,8 +18,6 @@ import type { ChecklistTemplate } from '@/lib/checklist/types'
 // ============================================================================
 // Alert Dialog Component (inline since not yet in UI lib)
 // ============================================================================
-
-// Using simple confirm for now - AlertDialog can be added to ui/ later
 
 function ConfirmDeleteDialog({
   open,
@@ -71,8 +68,13 @@ function ConfirmDeleteDialog({
 
 function TemplatesPageContent() {
   const { user } = useAuth()
-  const { templates, createTemplate, updateTemplate, deleteTemplate, getTemplateById } =
+  const { templates, createTemplate, updateTemplate, deleteTemplate, getTemplateById, fetchTemplates } =
     useChecklistStore()
+
+  // Fetch templates on mount
+  useEffect(() => {
+    fetchTemplates()
+  }, [fetchTemplates])
 
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -114,10 +116,14 @@ function TemplatesPageContent() {
     }
   }
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (templateToDelete) {
-      deleteTemplate(templateToDelete.id)
-      toast.success(`Template-ul "${templateToDelete.name}" a fost sters`)
+      try {
+        await deleteTemplate(templateToDelete.id)
+        toast.success(`Template-ul "${templateToDelete.name}" a fost sters`)
+      } catch {
+        toast.error('Eroare la stergerea template-ului')
+      }
       setTemplateToDelete(null)
     }
   }
@@ -127,54 +133,56 @@ function TemplatesPageContent() {
     setQrDialogOpen(true)
   }
 
-  const handleFormSubmit = (data: TemplateFormData) => {
+  const handleFormSubmit = async (data: TemplateFormData) => {
     setIsSubmitting(true)
 
     try {
       if (selectedTemplateId) {
-        // Update existing
-        updateTemplate(selectedTemplateId, {
+        // Update existing - map form data to API shape
+        await updateTemplate(selectedTemplateId, {
           name: data.name,
           description: data.description || '',
           type: data.type,
-          timeWindow: {
-            startHour: data.timeWindow.startHour,
-            startMinute: data.timeWindow.startMinute,
-            endHour: data.timeWindow.endHour,
-            endMinute: data.timeWindow.endMinute,
-            allowLateCompletion: data.timeWindow.allowLateCompletion,
-            lateWindowMinutes: data.timeWindow.lateWindowMinutes,
-          },
+          timeWindowStartHour: data.timeWindow.startHour,
+          timeWindowStartMinute: data.timeWindow.startMinute,
+          timeWindowEndHour: data.timeWindow.endHour,
+          timeWindowEndMinute: data.timeWindow.endMinute,
+          allowLateCompletion: data.timeWindow.allowLateCompletion,
+          lateWindowMinutes: data.timeWindow.lateWindowMinutes,
           assignedTo: data.assignedTo,
-          items: data.items,
+          items: data.items.map((item, index) => ({
+            label: item.text,
+            isRequired: item.required,
+            order: index,
+          })),
         })
         toast.success(`Template-ul "${data.name}" a fost actualizat`)
       } else {
-        // Create new
-        createTemplate({
+        // Create new - map form data to API shape
+        await createTemplate({
           name: data.name,
           description: data.description || '',
           type: data.type,
-          timeWindow: {
-            startHour: data.timeWindow.startHour,
-            startMinute: data.timeWindow.startMinute,
-            endHour: data.timeWindow.endHour,
-            endMinute: data.timeWindow.endMinute,
-            allowLateCompletion: data.timeWindow.allowLateCompletion,
-            lateWindowMinutes: data.timeWindow.lateWindowMinutes,
-          },
+          timeWindowStartHour: data.timeWindow.startHour,
+          timeWindowStartMinute: data.timeWindow.startMinute,
+          timeWindowEndHour: data.timeWindow.endHour,
+          timeWindowEndMinute: data.timeWindow.endMinute,
+          allowLateCompletion: data.timeWindow.allowLateCompletion,
+          lateWindowMinutes: data.timeWindow.lateWindowMinutes,
           assignedTo: data.assignedTo,
-          items: data.items,
-          createdBy: user?.id || 'unknown',
+          items: data.items.map((item, index) => ({
+            label: item.text,
+            isRequired: item.required,
+            order: index,
+          })),
         })
         toast.success(`Template-ul "${data.name}" a fost creat`)
       }
 
       setIsDialogOpen(false)
       setSelectedTemplateId(null)
-    } catch (error) {
+    } catch {
       toast.error('A aparut o eroare. Te rugam sa incerci din nou.')
-      console.error('Template save error:', error)
     } finally {
       setIsSubmitting(false)
     }

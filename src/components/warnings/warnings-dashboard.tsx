@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { ro } from 'date-fns/locale'
 import {
@@ -104,7 +104,12 @@ export function WarningsDashboard({
   onSelectEmployee,
   onCreateWarning,
 }: WarningsDashboardProps) {
-  const { warnings } = useWarningStore()
+  const { warnings, isLoading, fetchWarnings } = useWarningStore()
+
+  // Fetch all warnings on mount
+  useEffect(() => {
+    fetchWarnings()
+  }, [fetchWarnings])
 
   const [activeTab, setActiveTab] = useState<FilterTab>('active')
   const [sortField, setSortField] = useState<SortField>('currentLevel')
@@ -387,6 +392,13 @@ export function WarningsDashboard({
           </TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* Loading state */}
+      {isLoading && warnings.length === 0 && (
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">Se incarca avertismentele...</p>
+        </div>
+      )}
 
       {/* Employees table with ResponsiveTable */}
       <ResponsiveTable

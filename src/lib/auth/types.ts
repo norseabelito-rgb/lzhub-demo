@@ -2,7 +2,11 @@
  * Authentication types for LaserZone Hub
  */
 
+import type { DefaultSession } from 'next-auth'
+
 export type UserRole = 'manager' | 'angajat'
+
+export type ShiftType = 'dimineata' | 'seara'
 
 export interface User {
   id: string
@@ -14,6 +18,8 @@ export interface User {
   isNew?: boolean
   /** Data inceperii (pentru pre-boarding - ONBD-13) */
   startDate?: Date
+  /** Tipul de tura */
+  shiftType?: ShiftType
 }
 
 export interface AuthState {
@@ -36,3 +42,31 @@ export interface AuthActions {
 }
 
 export type AuthStore = AuthState & AuthActions
+
+// ---- NextAuth module augmentation ----
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string
+      role: UserRole
+      isNew?: boolean
+      shiftType?: ShiftType
+    } & DefaultSession['user']
+  }
+
+  interface User {
+    role: UserRole
+    isNew?: boolean
+    shiftType?: ShiftType
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id: string
+    role: UserRole
+    isNew?: boolean
+    shiftType?: ShiftType
+  }
+}

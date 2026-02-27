@@ -23,15 +23,15 @@ export { ONBOARDING_STEPS, ONBOARDING_STEP_LABELS } from './types'
 export { useOnboardingStore, STEP_ORDER, STEP_DEPENDENCIES, MAX_QUIZ_ATTEMPTS, QUIZ_PASS_THRESHOLD } from './onboarding-store'
 export type { OnboardingStore } from './onboarding-store'
 
-// Mock data (for testing/development)
+// Static content
 export {
-  MOCK_NDA_TEXT,
-  MOCK_DOCUMENTS,
-  MOCK_VIDEO_URL,
-  MOCK_VIDEO_CHAPTERS,
-  MOCK_QUIZ_QUESTIONS,
-  MOCK_ONBOARDING_PROGRESS,
-} from './mock-data'
+  NDA_TEXT,
+  TRAINING_DOCUMENTS,
+  TRAINING_VIDEO_URL,
+  VIDEO_CHAPTERS,
+  QUIZ_QUESTIONS,
+} from './content'
+export type { TrainingDocument, VideoChapter, QuizQuestion, QuizOption } from './content'
 
 // PDF generation
 export { generateNdaPdf, downloadNdaPdf, generateAndDownloadNdaPdf } from './pdf-generator'

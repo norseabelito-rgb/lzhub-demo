@@ -346,12 +346,12 @@ export function HashtagManager({ className }: HashtagManagerProps) {
   const deleteHashtagSetAction = useSocialStore((state) => state.deleteHashtagSet)
 
   // Handle create/edit
-  const handleSave = (data: HashtagSetFormData) => {
+  const handleSave = async (data: HashtagSetFormData) => {
     if (editingSet) {
-      updateHashtagSet(editingSet.id, data)
+      await updateHashtagSet(editingSet.id, data)
       toast.success('Set de hashtag-uri actualizat')
     } else {
-      createHashtagSet(data)
+      await createHashtagSet(data)
       toast.success('Set de hashtag-uri creat')
     }
     setEditingSet(null)
@@ -364,9 +364,9 @@ export function HashtagManager({ className }: HashtagManagerProps) {
   }
 
   // Handle delete
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteSet) {
-      deleteHashtagSetAction(deleteSet.id)
+      await deleteHashtagSetAction(deleteSet.id)
       toast.success('Set de hashtag-uri sters')
       setDeleteSet(null)
     }

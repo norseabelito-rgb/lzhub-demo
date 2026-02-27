@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { format, startOfWeek, subDays } from 'date-fns'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { useChecklistStore } from '@/lib/checklist'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,13 @@ import { HistoryDetail } from '@/components/checklists/history-detail'
  */
 export default function HistoryPage() {
   const { user, isManager } = useAuth()
-  const { instances, templates } = useChecklistStore()
+  const { instances, templates, isLoading, fetchTemplates, fetchInstances } = useChecklistStore()
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchTemplates()
+    fetchInstances()
+  }, [fetchTemplates, fetchInstances])
 
   // State
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -141,28 +147,38 @@ export default function HistoryPage() {
         )}
       </div>
 
-      {/* Main content - two column layout */}
-      <div className="grid gap-6 lg:grid-cols-[350px_1fr]">
-        {/* Calendar */}
-        <div className="order-1 lg:order-none">
-          <HistoryCalendar
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
-            instancesByDate={instancesByDate}
-            currentMonth={currentMonth}
-            onMonthChange={setCurrentMonth}
-          />
+      {/* Loading state */}
+      {isLoading && instances.length === 0 && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Se incarca istoricul...</span>
         </div>
+      )}
 
-        {/* Details */}
-        <div className="order-2 lg:order-none">
-          <HistoryDetail
-            date={selectedDate}
-            instances={instancesForSelectedDate}
-            templates={templates}
-          />
+      {/* Main content - two column layout */}
+      {!isLoading && (
+        <div className="grid gap-6 lg:grid-cols-[350px_1fr]">
+          {/* Calendar */}
+          <div className="order-1 lg:order-none">
+            <HistoryCalendar
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              instancesByDate={instancesByDate}
+              currentMonth={currentMonth}
+              onMonthChange={setCurrentMonth}
+            />
+          </div>
+
+          {/* Details */}
+          <div className="order-2 lg:order-none">
+            <HistoryDetail
+              date={selectedDate}
+              instances={instancesForSelectedDate}
+              templates={templates}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

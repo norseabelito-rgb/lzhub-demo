@@ -30,17 +30,6 @@ export { useCustomerStore } from './customer-store'
 export type { CustomerStore } from './customer-store'
 
 // ============================================================================
-// Mock Data Exports (for development/testing)
-// ============================================================================
-
-export {
-  MOCK_RESERVATIONS,
-  MOCK_CUSTOMERS,
-  DEFAULT_TAGS,
-  DEFAULT_CAPACITY_SETTINGS,
-} from './mock-data'
-
-// ============================================================================
 // Date/Time Formatting Utilities
 // ============================================================================
 

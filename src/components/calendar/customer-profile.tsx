@@ -89,14 +89,18 @@ export function CustomerProfile({
   }, [reservations, customer.id])
 
   // Handle save edit
-  const handleSave = () => {
-    updateCustomer(customer.id, {
-      name: editData.name,
-      phone: editData.phone,
-      email: editData.email || undefined,
-      notes: editData.notes || undefined,
-    })
-    setIsEditing(false)
+  const handleSave = async () => {
+    try {
+      await updateCustomer(customer.id, {
+        name: editData.name,
+        phone: editData.phone,
+        email: editData.email || undefined,
+        notes: editData.notes || undefined,
+      })
+      setIsEditing(false)
+    } catch {
+      // Error is stored in the store
+    }
   }
 
   // Handle cancel edit

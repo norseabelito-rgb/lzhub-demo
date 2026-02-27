@@ -4,7 +4,7 @@
  */
 
 import { jsPDF } from 'jspdf'
-import { MOCK_NDA_TEXT } from './mock-data'
+import { NDA_TEXT } from './content'
 
 export interface NdaPdfData {
   /** Employee name who signed */
@@ -51,7 +51,7 @@ export function generateNdaPdf(data: NdaPdfData): string {
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
 
-  const lines = doc.splitTextToSize(MOCK_NDA_TEXT, contentWidth)
+  const lines = doc.splitTextToSize(NDA_TEXT, contentWidth)
 
   for (const line of lines) {
     // Check if we need a new page

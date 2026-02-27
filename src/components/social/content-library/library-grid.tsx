@@ -260,18 +260,18 @@ export function LibraryGrid({
   }, [items, filterType, filterTag])
 
   // Handle edit tags save
-  const handleEditTagsSave = (data: { tags: string[] }) => {
+  const handleEditTagsSave = async (data: { tags: string[] }) => {
     if (editingItem) {
-      updateLibraryItem(editingItem.id, { tags: data.tags })
+      await updateLibraryItem(editingItem.id, { tags: data.tags })
       toast.success('Tag-uri actualizate')
       setEditingItem(null)
     }
   }
 
   // Handle delete
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteItem) {
-      removeFromLibrary(deleteItem.id)
+      await removeFromLibrary(deleteItem.id)
       toast.success('Media stearsa')
       setDeleteItem(null)
     }

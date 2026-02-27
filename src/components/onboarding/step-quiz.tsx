@@ -8,8 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { QuizQuestion } from './quiz-question'
 import { QuizResults } from './quiz-results'
-import { useOnboardingStore, QUIZ_PASS_THRESHOLD, MAX_QUIZ_ATTEMPTS } from '@/lib/onboarding/onboarding-store'
-import { MOCK_QUIZ_QUESTIONS, type QuizQuestion as QuizQuestionType } from '@/lib/onboarding/mock-data'
+import { useOnboardingStore, QUIZ_PASS_THRESHOLD, MAX_QUIZ_ATTEMPTS, QUIZ_QUESTIONS, type QuizQuestion as QuizQuestionType } from '@/lib/onboarding'
 
 export interface StepQuizProps {
   /** Callback when quiz is passed and user proceeds to next step */
@@ -42,7 +41,7 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
   const [lastResult, setLastResult] = useState<{ score: number; passed: boolean } | null>(null)
 
   // Questions
-  const questions = MOCK_QUIZ_QUESTIONS
+  const questions = QUIZ_QUESTIONS
   const totalQuestions = questions.length
   const currentQuestion = questions[currentQuestionIndex]
 
@@ -121,9 +120,9 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
   }, [answers, questions, totalQuestions])
 
   // Submit quiz
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     const score = calculateScore()
-    const passed = submitQuizAttempt(answers, score)
+    const passed = await submitQuizAttempt(answers, score)
 
     setLastResult({ score, passed })
     setQuizState('results')

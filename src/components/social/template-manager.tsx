@@ -283,12 +283,12 @@ export function TemplateManager({ className }: TemplateManagerProps) {
   const deleteTemplateAction = useSocialStore((state) => state.deleteTemplate)
 
   // Handle create/edit
-  const handleSave = (data: TemplateFormData) => {
+  const handleSave = async (data: TemplateFormData) => {
     if (editingTemplate) {
-      updateTemplate(editingTemplate.id, data)
+      await updateTemplate(editingTemplate.id, data)
       toast.success('Template actualizat')
     } else {
-      createTemplate(data)
+      await createTemplate(data)
       toast.success('Template creat')
     }
     setEditingTemplate(null)
@@ -301,9 +301,9 @@ export function TemplateManager({ className }: TemplateManagerProps) {
   }
 
   // Handle delete
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteTemplate) {
-      deleteTemplateAction(deleteTemplate.id)
+      await deleteTemplateAction(deleteTemplate.id)
       toast.success('Template sters')
       setDeleteTemplate(null)
     }

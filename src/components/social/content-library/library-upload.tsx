@@ -116,12 +116,11 @@ export function LibraryUpload({ open, onOpenChange }: LibraryUploadProps) {
   }
 
   // Submit
-  const onSubmit = (data: UploadFormData) => {
-    // Create mock library item
+  const onSubmit = async (data: UploadFormData) => {
     const isVideo = data.type === 'video'
     const mockId = crypto.randomUUID().slice(0, 8)
 
-    addToLibrary({
+    await addToLibrary({
       name: data.name,
       type: data.type as MediaType,
       url: isVideo

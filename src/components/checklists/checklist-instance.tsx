@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { format, differenceInMinutes } from 'date-fns'
 import { ro } from 'date-fns/locale'
 import { CheckCircle2, Clock, AlertTriangle, Calendar, User } from 'lucide-react'
@@ -32,6 +32,7 @@ export function ChecklistInstanceView({
   currentUser,
 }: ChecklistInstanceViewProps) {
   const { checkItem, uncheckItem } = useChecklistStore()
+  const [checkingItemId, setCheckingItemId] = useState<string | null>(null)
 
   // Check time window status
   const timeStatus = useMemo(() => {
@@ -61,26 +62,31 @@ export function ChecklistInstanceView({
     return differenceInMinutes(now, today)
   }
 
-  const handleItemCheck = (itemId: string, checked: boolean) => {
-    if (checked) {
-      const result = checkItem(instance.id, itemId, currentUser.id, currentUser.name)
+  const handleItemCheck = async (itemId: string, checked: boolean) => {
+    setCheckingItemId(itemId)
+    try {
+      if (checked) {
+        const result = await checkItem(instance.id, itemId, currentUser.id, currentUser.name)
 
-      if (result.success) {
-        if (result.wasLate) {
-          toast.warning('Element bifat - completare tarzie', {
-            description: 'Aceasta actiune a fost inregistrata ca tarzie in audit log.',
-          })
+        if (result.success) {
+          if (result.wasLate) {
+            toast.warning('Element bifat - completare tarzie', {
+              description: 'Aceasta actiune a fost inregistrata ca tarzie in audit log.',
+            })
+          } else {
+            toast.success('Element completat')
+          }
         } else {
-          toast.success('Element completat')
+          toast.error('Nu se poate bifa', {
+            description: result.error,
+          })
         }
       } else {
-        toast.error('Nu se poate bifa', {
-          description: result.error,
-        })
+        await uncheckItem(instance.id, itemId, currentUser.id, currentUser.name)
+        toast.info('Element debifat')
       }
-    } else {
-      uncheckItem(instance.id, itemId, currentUser.id, currentUser.name)
-      toast.info('Element debifat')
+    } finally {
+      setCheckingItemId(null)
     }
   }
 
@@ -136,7 +142,7 @@ export function ChecklistInstanceView({
         <CardContent className="space-y-2">
           {instance.items.map((item) => {
             const completion = instance.completions.find((c) => c.itemId === item.id)
-            const isDisabled = !timeStatus.allowed && !completion
+            const isDisabled = (!timeStatus.allowed && !completion) || checkingItemId === item.id
 
             return (
               <ChecklistItemRow
@@ -144,7 +150,7 @@ export function ChecklistInstanceView({
                 item={item}
                 completion={completion}
                 disabled={isDisabled}
-                disabledReason={timeStatus.reason}
+                disabledReason={checkingItemId === item.id ? 'Se proceseaza...' : timeStatus.reason}
                 onCheck={(checked) => handleItemCheck(item.id, checked)}
               />
             )

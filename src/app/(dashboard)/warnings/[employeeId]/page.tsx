@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Plus, X } from 'lucide-react'
 
-import { useAuth, mockUsers } from '@/lib/auth'
+import { useAuth } from '@/lib/auth'
+import { api } from '@/lib/api-client'
 import { useWarningStore } from '@/lib/warnings'
 import type { Warning } from '@/lib/warnings'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,13 @@ import {
 } from '@/components/ui/dialog'
 import { WarningTimeline, DisciplineStepper, WarningModal, SignatureDisplay } from '@/components/warnings'
 
+interface ApiEmployee {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 /**
  * Employee warning history page
  * Manager-only: redirects employees to /dashboard
@@ -27,30 +35,53 @@ export default function EmployeeWarningsPage() {
   const params = useParams()
   const employeeId = params.employeeId as string
   const { user, isManager } = useAuth()
-  
+
   const {
     getWarningsForEmployee,
     getCurrentLevel,
     clearWarning,
+    fetchWarnings,
+    warnings,
   } = useWarningStore()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [detailWarning, setDetailWarning] = useState<Warning | null>(null)
+  const [employee, setEmployee] = useState<ApiEmployee | null>(null)
+  const [employeeLoading, setEmployeeLoading] = useState(true)
 
-  // Get employee info
-  const employee = useMemo(() => {
-    return mockUsers.find((u) => u.id === employeeId)
+  // Fetch employee info from API
+  useEffect(() => {
+    let cancelled = false
+    setEmployeeLoading(true)
+    api<ApiEmployee>(`/api/employees/${employeeId}`)
+      .then((data) => {
+        if (!cancelled) setEmployee(data)
+      })
+      .catch(() => {
+        if (!cancelled) setEmployee(null)
+      })
+      .finally(() => {
+        if (!cancelled) setEmployeeLoading(false)
+      })
+    return () => { cancelled = true }
   }, [employeeId])
 
+  // Fetch warnings if not loaded
+  useEffect(() => {
+    if (warnings.length === 0) {
+      fetchWarnings()
+    }
+  }, [warnings.length, fetchWarnings])
+
   // Get warnings for this employee
-  const warnings = useMemo(() => {
+  const employeeWarnings = useMemo(() => {
     return getWarningsForEmployee(employeeId)
-  }, [employeeId, getWarningsForEmployee])
+  }, [employeeId, getWarningsForEmployee, warnings])
 
   // Get current discipline level
   const currentLevel = useMemo(() => {
     return getCurrentLevel(employeeId)
-  }, [employeeId, getCurrentLevel])
+  }, [employeeId, getCurrentLevel, warnings])
 
   // Manager-only check
   if (!user) {
@@ -66,6 +97,15 @@ export default function EmployeeWarningsPage() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <p className="text-muted-foreground">Redirectionare...</p>
+      </div>
+    )
+  }
+
+  // Loading state
+  if (employeeLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">Se incarca...</p>
       </div>
     )
   }
@@ -95,9 +135,9 @@ export default function EmployeeWarningsPage() {
   }
 
   // Handle clear warning
-  const handleClearWarning = (warningId: string, reason: string) => {
+  const handleClearWarning = async (warningId: string, reason: string) => {
     if (user) {
-      clearWarning(warningId, user.id, reason)
+      await clearWarning(warningId, user.id, reason)
     }
   }
 
@@ -150,7 +190,7 @@ export default function EmployeeWarningsPage() {
           Istoricul avertismentelor
         </h2>
         <WarningTimeline
-          warnings={warnings}
+          warnings={employeeWarnings}
           onViewDetail={handleViewDetail}
           onClearWarning={handleClearWarning}
           showClearOption={true}
@@ -244,7 +284,7 @@ export default function EmployeeWarningsPage() {
               {detailWarning.acknowledgment && (
                 <div className="border-t pt-4">
                   <p className="text-sm font-medium mb-2">Confirmare angajat</p>
-                  
+
                   {detailWarning.acknowledgment.signature && (
                     <SignatureDisplay
                       dataUrl={detailWarning.acknowledgment.signature.dataUrl}

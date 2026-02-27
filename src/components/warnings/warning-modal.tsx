@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { useAuthStore, mockUsers } from '@/lib/auth'
+import { useAuth } from '@/lib/auth'
 import { useWarningStore, type Signature } from '@/lib/warnings'
 import { WarningForm, type WarningFormData } from './warning-form'
 
@@ -41,20 +41,13 @@ export function WarningModal({
   preselectedEmployeeId,
   onSuccess,
 }: WarningModalProps) {
-  const user = useAuthStore((state) => state.user)
+  const { user } = useAuth()
   const createWarning = useWarningStore((state) => state.createWarning)
 
   // Handle form submission
-  const handleSubmit = (data: WarningFormData) => {
+  const handleSubmit = async (data: WarningFormData) => {
     if (!user) {
       toast.error('Trebuie sa fii autentificat pentru a crea avertismente')
-      return
-    }
-
-    // Get employee name for denormalization
-    const employee = mockUsers.find((u) => u.id === data.employeeId)
-    if (!employee) {
-      toast.error('Angajatul nu a fost gasit')
       return
     }
 
@@ -67,30 +60,32 @@ export function WarningModal({
       signerRole: 'manager',
     }
 
-    // Create the warning
-    createWarning({
-      employeeId: data.employeeId,
-      employeeName: employee.name,
-      managerId: user.id,
-      managerName: user.name,
-      level: data.level,
-      category: data.category,
-      description: data.description,
-      incidentDate: data.incidentDate,
-      witness: data.witness,
-      managerSignature,
-      status: 'pending_acknowledgment',
-      isCleared: false,
-    })
+    try {
+      // The API resolves the employee name from employeeId
+      await createWarning({
+        employeeId: data.employeeId,
+        employeeName: '', // API resolves from employeeId
+        managerId: user.id,
+        managerName: user.name,
+        level: data.level,
+        category: data.category,
+        description: data.description,
+        incidentDate: data.incidentDate,
+        witness: data.witness,
+        managerSignature,
+        status: 'pending_acknowledgment',
+        isCleared: false,
+      })
 
-    // Success feedback
-    toast.success('Avertisment inregistrat', {
-      description: `Avertisment ${data.level} pentru ${employee.name} a fost creat.`,
-    })
+      // Success feedback
+      toast.success('Avertisment inregistrat')
 
-    // Close modal and notify success
-    onOpenChange(false)
-    onSuccess?.()
+      // Close modal and notify success
+      onOpenChange(false)
+      onSuccess?.()
+    } catch {
+      toast.error('Eroare la crearea avertismentului. Incearca din nou.')
+    }
   }
 
   // Handle cancel

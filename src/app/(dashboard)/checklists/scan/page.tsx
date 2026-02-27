@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { QrCode, ClipboardCheck, Camera, Keyboard } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,11 +20,17 @@ import { format } from 'date-fns'
 export default function ScanPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const { getTemplateById, createInstance, instances } = useChecklistStore()
+  const { getTemplateById, createInstance, instances, fetchTemplates, fetchInstances } = useChecklistStore()
 
   const [isScannerOpen, setIsScannerOpen] = useState(false)
   const [manualCode, setManualCode] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchTemplates()
+    fetchInstances()
+  }, [fetchTemplates, fetchInstances])
 
   // Handle successful scan or manual entry
   const handleCodeSubmit = async (templateId: string) => {
@@ -59,8 +65,8 @@ export default function ScanPage() {
         return
       }
 
-      // Create new instance
-      const instanceId = createInstance(templateId, user.id, today)
+      // Create new instance (async)
+      const instanceId = await createInstance(templateId, user.id, today)
       toast.success(`S-a creat checklistul: ${template.name}`)
       router.push(`/checklists/${instanceId}`)
     } catch (error) {

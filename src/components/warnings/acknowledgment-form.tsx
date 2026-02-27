@@ -102,7 +102,7 @@ export function AcknowledgmentForm({
     try {
       if (refusesToSign) {
         // Record refusal with witness
-        refuseWarning(warning.id, witnessName.trim())
+        await refuseWarning(warning.id, witnessName.trim())
         toast.success('Refuzul a fost inregistrat')
       } else {
         // Record acknowledgment with signature
@@ -114,7 +114,7 @@ export function AcknowledgmentForm({
           signerRole: 'angajat',
         }
 
-        acknowledgeWarning(warning.id, {
+        await acknowledgeWarning(warning.id, {
           signature,
           refusedToSign: false,
           employeeComments: employeeComments.trim() || undefined,

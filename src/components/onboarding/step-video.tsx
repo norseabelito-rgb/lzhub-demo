@@ -18,8 +18,7 @@ import {
   Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useOnboardingStore } from '@/lib/onboarding'
-import { MOCK_VIDEO_URL, MOCK_VIDEO_CHAPTERS } from '@/lib/onboarding/mock-data'
+import { useOnboardingStore, TRAINING_VIDEO_URL, VIDEO_CHAPTERS } from '@/lib/onboarding'
 import { OnboardingVideoPlayer } from './video-player'
 
 export interface StepVideoProps {
@@ -58,8 +57,8 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
   }
 
   // Handle video completion
-  const handleComplete = () => {
-    completeVideo()
+  const handleComplete = async () => {
+    await completeVideo()
   }
 
   // Continue to next step
@@ -139,7 +138,7 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
         </CardHeader>
         <CardContent>
           <OnboardingVideoPlayer
-            url={MOCK_VIDEO_URL}
+            url={TRAINING_VIDEO_URL}
             onProgress={handleProgress}
             onComplete={handleComplete}
             initialProgress={
@@ -166,7 +165,7 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {MOCK_VIDEO_CHAPTERS.map((chapter, index) => (
+            {VIDEO_CHAPTERS.map((chapter, index) => (
               <div
                 key={index}
                 className={cn(

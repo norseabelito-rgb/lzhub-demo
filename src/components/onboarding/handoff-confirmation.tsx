@@ -91,10 +91,10 @@ export function HandoffConfirmation() {
 
     try {
       // Confirm handoff
-      employeeConfirmHandoff()
+      await employeeConfirmHandoff()
 
       // Complete onboarding
-      completeOnboarding()
+      await completeOnboarding()
 
       toast.success('Primire confirmata!', {
         description: 'Felicitari! Ai finalizat procesul de onboarding.',

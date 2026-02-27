@@ -9,7 +9,7 @@
  * Does NOT affect managers (they don't need onboarding gate).
  */
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { useOnboardingStore } from '@/lib/onboarding'
@@ -27,6 +27,18 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const pathname = usePathname()
   const { user, isLoading: isAuthLoading } = useAuth()
   const allProgress = useOnboardingStore((state) => state.allProgress)
+  const isStoreLoading = useOnboardingStore((state) => state.isLoading)
+  const loadProgress = useOnboardingStore((state) => state.loadProgress)
+  const loadedRef = useRef(false)
+
+  // Load progress from API for new employees
+  useEffect(() => {
+    if (!user || user.role === 'manager' || !user.isNew || loadedRef.current) return
+    if (allProgress.find((p) => p.employeeId === user.id)) return
+
+    loadedRef.current = true
+    loadProgress(user.id)
+  }, [user, allProgress, loadProgress])
 
   // Compute access decision synchronously based on current state
   const { shouldRedirect, isLoading, canRender } = useMemo(() => {
@@ -55,6 +67,11 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
       return { shouldRedirect: false, isLoading: false, canRender: true }
     }
 
+    // Still loading progress from API
+    if (isStoreLoading) {
+      return { shouldRedirect: false, isLoading: true, canRender: false }
+    }
+
     // User is new - check onboarding progress from store
     const progress = allProgress.find((p) => p.employeeId === user.id)
 
@@ -65,7 +82,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
 
     // Onboarding complete - allow access
     return { shouldRedirect: false, isLoading: false, canRender: true }
-  }, [isAuthLoading, user, pathname, allProgress])
+  }, [isAuthLoading, user, pathname, allProgress, isStoreLoading])
 
   // Handle redirect in effect (side effect only)
   useEffect(() => {

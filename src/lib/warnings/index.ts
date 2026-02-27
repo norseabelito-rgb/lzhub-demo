@@ -30,5 +30,3 @@ export type { WarningStore } from './warning-store'
 export { WARNING_TEMPLATES, getTemplateForCategory } from './templates'
 export type { WarningTemplate } from './templates'
 
-// Mock data (for testing/development)
-export { MOCK_WARNINGS } from './mock-data'

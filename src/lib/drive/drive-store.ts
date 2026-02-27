@@ -7,7 +7,6 @@
 
 import { create } from 'zustand'
 import type { DriveFile, DriveState, DriveActions, DriveStore, SelectionMode, DriveTab, FolderPath } from './types'
-import { getMockFileById } from './mock-data'
 
 // ============================================================================
 // Initial State
@@ -164,17 +163,9 @@ export const useDriveStore = create<DriveStore>()((set, get) => ({
   },
 
   getSelectedFiles: (): DriveFile[] => {
-    const { selectedIds } = get()
-    const files: DriveFile[] = []
-
-    selectedIds.forEach((id) => {
-      const file = getMockFileById(id)
-      if (file) {
-        files.push(file)
-      }
-    })
-
-    return files
+    // No Drive API yet - return empty array
+    // When Drive API is implemented, this will fetch files by selectedIds
+    return []
   },
 
   // ========== Preview ==========

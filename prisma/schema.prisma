@@ -1,0 +1,461 @@
+// LaserZone Hub - Full Database Schema
+// Migrated from Zustand/localStorage prototype to PostgreSQL
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// AUTH & USERS
+// ============================================================================
+
+enum UserRole {
+  manager
+  angajat
+}
+
+enum ShiftType {
+  dimineata
+  seara
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  role      UserRole
+  avatar    String?
+  shiftType ShiftType?
+  isNew     Boolean   @default(false)
+  startDate DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  assignedChecklists  ChecklistInstance[]  @relation("AssignedChecklists")
+  completedItems      ChecklistCompletion[] @relation("CompletedItems")
+  auditLogs           AuditLog[]
+  warningsReceived    Warning[]            @relation("WarningsReceived")
+  warningsIssued      Warning[]            @relation("WarningsIssued")
+  warningsCleared     Warning[]            @relation("WarningsCleared")
+  onboardingProgress  OnboardingProgress?  @relation("OnboardingEmployee")
+  managedOnboardings  OnboardingProgress[] @relation("OnboardingManager")
+  reservationsCreated Reservation[]
+  socialPosts         SocialPost[]
+
+  @@map("users")
+}
+
+// ============================================================================
+// CALENDAR - CUSTOMERS & RESERVATIONS
+// ============================================================================
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags         CustomerTag[]
+  reservations Reservation[]
+
+  @@map("customers")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String
+  createdAt DateTime @default(now())
+
+  customers CustomerTag[]
+
+  @@map("tags")
+}
+
+model CustomerTag {
+  customerId String
+  tagId      String
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, tagId])
+  @@map("customer_tags")
+}
+
+enum Occasion {
+  regular
+  birthday
+  corporate
+  group
+  other
+}
+
+enum ReservationStatus {
+  confirmed
+  cancelled
+  completed
+  no_show
+}
+
+model Reservation {
+  id                String            @id @default(cuid())
+  customerId        String
+  date              String            // YYYY-MM-DD format
+  startTime         String            // HH:mm format
+  endTime           String            // HH:mm format
+  partySize         Int
+  occasion          Occasion          @default(regular)
+  notes             String?
+  status            ReservationStatus @default(confirmed)
+  hasConflict       Boolean           @default(false)
+  conflictOverridden Boolean          @default(false)
+  isWalkup          Boolean           @default(false)
+  createdBy         String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creator  User     @relation(fields: [createdBy], references: [id])
+
+  @@index([date])
+  @@index([customerId])
+  @@map("reservations")
+}
+
+model CapacitySettings {
+  id                String @id @default("default")
+  defaultCapacity   Int    @default(40)
+  warningThreshold  Float  @default(0.8)
+  criticalThreshold Float  @default(1.0)
+
+  @@map("capacity_settings")
+}
+
+// ============================================================================
+// CHECKLISTS
+// ============================================================================
+
+enum ChecklistType {
+  deschidere
+  inchidere
+  custom
+}
+
+enum ChecklistStatus {
+  pending
+  in_progress
+  completed
+  overdue
+}
+
+model ChecklistTemplate {
+  id                 String        @id @default(cuid())
+  name               String
+  description        String
+  type               ChecklistType
+  // Time window fields (flattened from TimeWindow interface)
+  timeWindowStartHour   Int
+  timeWindowStartMinute Int
+  timeWindowEndHour     Int
+  timeWindowEndMinute   Int
+  allowLateCompletion   Boolean     @default(false)
+  lateWindowMinutes     Int?
+  // Assignment: 'all', 'shift', or JSON array of employee IDs
+  assignedTo         String        @default("all")
+  createdBy          String
+  isActive           Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  items     ChecklistItem[]
+  instances ChecklistInstance[]
+
+  @@map("checklist_templates")
+}
+
+model ChecklistItem {
+  id         String @id @default(cuid())
+  templateId String
+  label      String
+  description String?
+  isRequired Boolean @default(true)
+  order      Int
+
+  template    ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  completions ChecklistCompletion[]
+
+  @@index([templateId])
+  @@map("checklist_items")
+}
+
+model ChecklistInstance {
+  id           String          @id @default(cuid())
+  templateId   String
+  templateName String          // Denormalized
+  date         String          // YYYY-MM-DD
+  assignedToId String
+  status       ChecklistStatus @default(pending)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
+
+  template    ChecklistTemplate     @relation(fields: [templateId], references: [id])
+  assignedTo  User                  @relation("AssignedChecklists", fields: [assignedToId], references: [id])
+  completions ChecklistCompletion[]
+
+  @@index([date])
+  @@index([assignedToId])
+  @@map("checklist_instances")
+}
+
+model ChecklistCompletion {
+  id         String   @id @default(cuid())
+  instanceId String
+  itemId     String
+  checkedById String
+  checkedAt  DateTime @default(now())
+  isLate     Boolean  @default(false)
+  notes      String?
+
+  instance ChecklistInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  item     ChecklistItem     @relation(fields: [itemId], references: [id])
+  checkedBy User              @relation("CompletedItems", fields: [checkedById], references: [id])
+
+  @@unique([instanceId, itemId])
+  @@map("checklist_completions")
+}
+
+// ============================================================================
+// AUDIT LOG (append-only)
+// ============================================================================
+
+model AuditLog {
+  id                   String   @id @default(cuid())
+  userId               String
+  userName             String
+  action               String   // AuditAction enum values
+  entityType           String   // 'template' | 'instance' | 'item'
+  entityId             String
+  details              Json     @default("{}")
+  wasWithinTimeWindow  Boolean  @default(true)
+  createdAt            DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// WARNINGS (Progressive Discipline)
+// ============================================================================
+
+enum DisciplineLevel {
+  verbal
+  written
+  final
+  termination
+}
+
+enum ViolationCategory {
+  tardiness
+  no_show
+  policy_violation
+  performance
+  insubordination
+  safety_violation
+  customer_complaint
+  cash_handling
+  uniform_appearance
+  other
+}
+
+enum WarningStatus {
+  pending_acknowledgment
+  acknowledged
+  refused
+  cleared
+}
+
+model Warning {
+  id              String            @id @default(cuid())
+  employeeId      String
+  employeeName    String            // Denormalized
+  managerId       String
+  managerName     String            // Denormalized
+  level           DisciplineLevel
+  category        ViolationCategory
+  description     String
+  incidentDate    DateTime
+  witness         String?
+
+  // Manager signature (JSON)
+  managerSignature Json
+
+  // Status
+  status          WarningStatus     @default(pending_acknowledgment)
+
+  // Acknowledgment fields (flattened)
+  employeeSignature    Json?
+  acknowledgmentComment String?
+  acknowledgedAt       DateTime?
+  refusedToSign        Boolean       @default(false)
+  refusedAt            DateTime?
+  refusedWitnessedBy   String?
+
+  // Clearing
+  isCleared       Boolean           @default(false)
+  clearedAt       DateTime?
+  clearedById     String?
+  clearedReason   String?
+
+  attachments     String[]          @default([])
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  employee  User  @relation("WarningsReceived", fields: [employeeId], references: [id])
+  issuedBy  User  @relation("WarningsIssued", fields: [managerId], references: [id])
+  clearedBy User? @relation("WarningsCleared", fields: [clearedById], references: [id])
+
+  @@index([employeeId])
+  @@index([status])
+  @@map("warnings")
+}
+
+// ============================================================================
+// ONBOARDING
+// ============================================================================
+
+model OnboardingProgress {
+  id            String   @id @default(cuid())
+  employeeId    String   @unique
+  employeeName  String
+  currentStep   String   @default("nda")  // OnboardingStep
+  startedAt     DateTime @default(now())
+
+  // NDA
+  ndaSigned        Boolean @default(false)
+  ndaSignature     Json?   // NdaSignature
+  ndaPdfUrl        String?
+
+  // Documents (JSON array of DocumentProgress)
+  documents        Json    @default("[]")
+
+  // Video (JSON of VideoProgress)
+  videoProgress    Json?
+  videoCompleted   Boolean @default(false)
+
+  // Quiz (JSON array of QuizAttempt)
+  quizAttempts     Json    @default("[]")
+  quizPassed       Boolean @default(false)
+  quizBestScore    Int?
+
+  // Physical Handoff (JSON of PhysicalHandoff)
+  physicalHandoff  Json?
+  handoffCompleted Boolean @default(false)
+  managerId        String?
+
+  // Completion
+  isComplete       Boolean  @default(false)
+  completedAt      DateTime?
+
+  // Audit log (JSON array of OnboardingAuditEntry)
+  auditLog         Json     @default("[]")
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  employee User  @relation("OnboardingEmployee", fields: [employeeId], references: [id])
+  manager  User? @relation("OnboardingManager", fields: [managerId], references: [id])
+
+  @@map("onboarding_progress")
+}
+
+// ============================================================================
+// SOCIAL MEDIA
+// ============================================================================
+
+enum PostStatus {
+  draft
+  scheduled
+  published
+  failed
+}
+
+model SocialPost {
+  id          String     @id @default(cuid())
+  caption     String
+  mediaIds    String[]   @default([])
+  hashtags    String[]   @default([])
+  platforms   String[]   @default([])  // SocialPlatform[]
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  status      PostStatus @default(draft)
+
+  // Per-platform statuses (JSON)
+  platformStatuses Json @default("{}")
+  // Per-platform metrics (JSON)
+  metrics          Json @default("{}")
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("social_posts")
+}
+
+model SocialTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  content   String
+  category  String
+  createdAt DateTime @default(now())
+
+  @@map("social_templates")
+}
+
+model HashtagSet {
+  id        String   @id @default(cuid())
+  name      String
+  hashtags  String[] @default([])
+  createdAt DateTime @default(now())
+
+  @@map("hashtag_sets")
+}
+
+model ContentLibraryItem {
+  id           String   @id @default(cuid())
+  name         String
+  type         String   // 'image' | 'video'
+  url          String
+  thumbnailUrl String
+  mimeType     String
+  size         Int
+  width        Int?
+  height       Int?
+  duration     Int?     // seconds, for videos
+  tags         String[] @default([])
+  driveFileId  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("content_library")
+}

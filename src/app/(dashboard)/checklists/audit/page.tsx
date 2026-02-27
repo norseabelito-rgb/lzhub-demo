@@ -1,7 +1,8 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Download, FileText } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Loader2 } from 'lucide-react'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { useAuditStore } from '@/lib/checklist'
 import { Button } from '@/components/ui/button'
@@ -12,7 +13,12 @@ import { AuditLogViewer } from '@/components/checklists/audit-log-viewer'
  * Manager-only access to view all checklist actions
  */
 function AuditPageContent() {
-  const { entries } = useAuditStore()
+  const { entries, isLoading, fetchEntries } = useAuditStore()
+
+  // Fetch entries on mount
+  useEffect(() => {
+    fetchEntries()
+  }, [fetchEntries])
 
   return (
     <div className="space-y-6">
@@ -54,8 +60,18 @@ function AuditPageContent() {
         </div>
       </div>
 
+      {/* Loading state */}
+      {isLoading && entries.length === 0 && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Se incarca audit log-ul...</span>
+        </div>
+      )}
+
       {/* Audit log viewer */}
-      <AuditLogViewer entries={entries} showFilters={true} maxEntries={50} />
+      {!isLoading && (
+        <AuditLogViewer entries={entries} showFilters={true} maxEntries={50} />
+      )}
     </div>
   )
 }

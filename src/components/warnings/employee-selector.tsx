@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronsUpDown, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -11,12 +11,21 @@ import {
 } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { mockUsers } from '@/lib/auth'
+import { api } from '@/lib/api-client'
 import { useWarningStore, DISCIPLINE_LEVEL_LABELS, type DisciplineLevel } from '@/lib/warnings'
 
 // ============================================================================
 // Types
 // ============================================================================
+
+interface ApiEmployee {
+  id: string
+  name: string
+  email: string
+  role: string
+  shiftType: string | null
+  isNew: boolean
+}
 
 export interface EmployeeSelectorProps {
   /** Currently selected employee ID */
@@ -83,7 +92,7 @@ function getLevelBadgeVariant(level: DisciplineLevel | null): {
 
 /**
  * Employee selector with search and discipline level badges
- * Filters for employees only (role === 'angajat')
+ * Fetches employees from API, filters for role === 'angajat'
  */
 export function EmployeeSelector({
   value,
@@ -94,12 +103,26 @@ export function EmployeeSelector({
 }: EmployeeSelectorProps) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [employees, setEmployees] = useState<ApiEmployee[]>([])
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
 
   const getCurrentLevel = useWarningStore((state) => state.getCurrentLevel)
 
-  // Filter for employees only (not managers)
-  const employees = useMemo(() => {
-    return mockUsers.filter((user) => user.role === 'angajat')
+  // Fetch employees from API
+  useEffect(() => {
+    let cancelled = false
+    setIsLoadingEmployees(true)
+    api<ApiEmployee[]>('/api/employees?role=angajat')
+      .then((data) => {
+        if (!cancelled) setEmployees(data)
+      })
+      .catch(() => {
+        // silently fail, employees will be empty
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingEmployees(false)
+      })
+    return () => { cancelled = true }
   }, [])
 
   // Filter employees by search query
@@ -133,14 +156,16 @@ export function EmployeeSelector({
             role="combobox"
             aria-expanded={open}
             aria-invalid={!!error}
-            disabled={disabled}
+            disabled={disabled || isLoadingEmployees}
             className={cn(
               'w-full justify-between font-normal',
               !value && 'text-muted-foreground',
               error && 'border-destructive'
             )}
           >
-            {selectedEmployee ? (
+            {isLoadingEmployees ? (
+              <span>Se incarca angajatii...</span>
+            ) : selectedEmployee ? (
               <div className="flex items-center gap-2 overflow-hidden">
                 <span className="truncate">{selectedEmployee.name}</span>
                 {(() => {

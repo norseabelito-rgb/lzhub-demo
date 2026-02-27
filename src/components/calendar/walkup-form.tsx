@@ -104,44 +104,50 @@ function WalkupFormContent({
   }
 
   // Form submission
-  const onSubmit = (data: WalkupFormData) => {
+  const onSubmit = async (data: WalkupFormData) => {
     // Calculate end time (1 hour from start)
     const [hours, minutes] = defaultSlotTime.split(':').map(Number)
     const endHours = hours + 1
     const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 
-    // Create customer if name/phone provided
-    let customerId = 'walkup-anonymous'
-    if (data.name || data.phone) {
-      customerId = createCustomer({
-        name: data.name || 'Walk-up',
-        phone: data.phone || '',
-        tags: [],
+    try {
+      // Create customer if name/phone provided
+      let customerId = 'walkup-anonymous'
+      if (data.name || data.phone) {
+        customerId = await createCustomer({
+          name: data.name || 'Walk-up',
+          phone: data.phone || '',
+          tags: [],
+        })
+      }
+
+      // Create the reservation as walk-up
+      await createReservation({
+        customerId,
+        date: defaultSlotDate,
+        startTime: defaultSlotTime,
+        endTime,
+        partySize: data.partySize,
+        occasion: 'regular',
+        notes: data.notes,
+        status: 'confirmed',
+        createdBy: 'staff',
+        isWalkup: true,
+      })
+
+      // Show success message
+      toast.success(`Walk-up inregistrat: ${data.partySize} persoane`, {
+        description: `Slot: ${defaultSlotTime} - ${endTime}`,
+      })
+
+      // Reset form and call success callback
+      reset()
+      onSuccess?.()
+    } catch (err) {
+      toast.error('Eroare la inregistrare', {
+        description: (err as Error).message,
       })
     }
-
-    // Create the reservation as walk-up
-    const result = createReservation({
-      customerId,
-      date: defaultSlotDate,
-      startTime: defaultSlotTime,
-      endTime,
-      partySize: data.partySize,
-      occasion: 'regular',
-      notes: data.notes,
-      status: 'confirmed',
-      createdBy: 'staff',
-      isWalkup: true,
-    })
-
-    // Show success message
-    toast.success(`Walk-up inregistrat: ${data.partySize} persoane`, {
-      description: `Slot: ${defaultSlotTime} - ${endTime}`,
-    })
-
-    // Reset form and call success callback
-    reset()
-    onSuccess?.()
   }
 
   return (

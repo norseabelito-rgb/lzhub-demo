@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { useOnboardingStore, MOCK_NDA_TEXT, generateAndDownloadNdaPdf } from '@/lib/onboarding'
-import { useAuthStore } from '@/lib/auth'
+import { useOnboardingStore, NDA_TEXT, generateAndDownloadNdaPdf } from '@/lib/onboarding'
+import { useAuth } from '@/lib/auth'
 import { SignatureCanvas } from '@/components/warnings/signature-canvas'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -26,7 +26,7 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
   const signNda = useOnboardingStore((state) => state.signNda)
   const saveNdaPdf = useOnboardingStore((state) => state.saveNdaPdf)
   const currentProgress = useOnboardingStore((state) => state.currentProgress)
-  const user = useAuthStore((state) => state.user)
+  const { user } = useAuth()
 
   // Derive signed state from store (not local state)
   const isAlreadySigned = !!currentProgress?.nda
@@ -85,11 +85,11 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
   /**
    * Submit the signed NDA
    */
-  const handleSubmitSignature = useCallback(() => {
+  const handleSubmitSignature = useCallback(async () => {
     if (!pendingSignature || !user) return
 
     // Sign the NDA in the store
-    signNda(pendingSignature, user.id, user.name)
+    await signNda(pendingSignature, user.id, user.name)
     setPendingSignature(null)
     setJustSigned(true)
   }, [pendingSignature, user, signNda])
@@ -175,7 +175,7 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
           )}
         >
           <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-            {MOCK_NDA_TEXT}
+            {NDA_TEXT}
           </div>
         </div>
 

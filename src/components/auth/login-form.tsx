@@ -139,8 +139,8 @@ export function LoginForm() {
           </Button>
         </form>
 
-        {/* Dev helper - test accounts (shown when NEXT_PUBLIC_USE_MOCK is true) */}
-        {(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_USE_MOCK === 'true') && (
+        {/* Dev helper - test accounts (shown in development only) */}
+        {process.env.NODE_ENV === 'development' && (
           <div className="mt-6 border-t pt-4">
             <p className="mb-3 text-center text-xs text-muted-foreground">
               Conturi de test (doar in dezvoltare)

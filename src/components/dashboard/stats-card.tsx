@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import type { DashboardStats } from '@/lib/mock-data/dashboard'
+import type { DashboardStats } from '@/lib/dashboard'
 
 interface StatsCardProps {
   stat: DashboardStats

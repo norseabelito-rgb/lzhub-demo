@@ -45,8 +45,8 @@ export function PostActions({
 
   const { deletePost, publishPost, cancelSchedule } = useSocialStore()
 
-  const handleDelete = () => {
-    deletePost(post.id)
+  const handleDelete = async () => {
+    await deletePost(post.id)
     setShowDeleteDialog(false)
     onDelete?.()
     toast.success('Postarea a fost stearsa')
@@ -64,8 +64,8 @@ export function PostActions({
     }
   }
 
-  const handleCancelSchedule = () => {
-    cancelSchedule(post.id)
+  const handleCancelSchedule = async () => {
+    await cancelSchedule(post.id)
     toast.success('Programarea a fost anulata')
   }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { ro } from 'date-fns/locale'
 import { Clock } from 'lucide-react'
@@ -51,6 +51,15 @@ export function PendingWarningsList({
   // Get pending warnings from store
   const getPendingAcknowledgments = useWarningStore((s) => s.getPendingAcknowledgments)
   const getAllPendingWarnings = useWarningStore((s) => s.getAllPendingWarnings)
+  const fetchWarnings = useWarningStore((s) => s.fetchWarnings)
+  const warnings = useWarningStore((s) => s.warnings)
+
+  // Fetch warnings if not loaded yet
+  useEffect(() => {
+    if (warnings.length === 0) {
+      fetchWarnings()
+    }
+  }, [warnings.length, fetchWarnings])
 
   // Fetch and sort warnings
   const pendingWarnings = useMemo(() => {

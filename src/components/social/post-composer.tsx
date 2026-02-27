@@ -114,20 +114,20 @@ export function PostComposer({ initialData, mode, onSave, onCancel }: PostCompos
   const isScheduled = watchedScheduledAt !== null && watchedScheduledAt !== undefined
 
   // Handle form submission
-  const onSubmit = (data: PostFormData) => {
+  const onSubmit = async (data: PostFormData) => {
     try {
       // Resolve hashtags
       const hashtags = resolvedHashtags
 
       if (mode === 'create') {
         // Create new post
-        createPost({
+        await createPost({
           caption: data.caption,
           platforms: data.platforms,
           mediaIds: data.mediaIds,
           hashtags,
           scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
-          createdBy: 'current-user', // Would come from auth in real app
+          createdBy: 'current-user',
         })
 
         toast.success(
@@ -135,7 +135,7 @@ export function PostComposer({ initialData, mode, onSave, onCancel }: PostCompos
         )
       } else if (initialData) {
         // Update existing post
-        updatePost(initialData.id, {
+        await updatePost(initialData.id, {
           caption: data.caption,
           platforms: data.platforms,
           mediaIds: data.mediaIds,

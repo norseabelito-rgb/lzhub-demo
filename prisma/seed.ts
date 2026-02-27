@@ -3,12 +3,14 @@
  * Run with: npx prisma db seed
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../src/generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 import { addDays, subDays, format, setHours, setMinutes } from 'date-fns'
 import 'dotenv/config'
 
-const prisma = new PrismaClient()
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const prisma = new PrismaClient({ adapter })
 
 // ============================================================================
 // Helpers

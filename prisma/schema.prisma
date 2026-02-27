@@ -2,7 +2,8 @@
 // Migrated from Zustand/localStorage prototype to PostgreSQL
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {

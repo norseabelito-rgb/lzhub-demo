@@ -6,13 +6,10 @@ COPY . .
 
 # Fresh npm install without lockfile - resolves ALL platform-specific
 # native binaries correctly for Linux (lightningcss, @tailwindcss/oxide)
-# Also runs postinstall which generates Prisma client
 RUN npm install
 
-# Generate Prisma client explicitly (postinstall may have failed silently)
-RUN npx prisma generate && \
-    echo "=== Prisma client generated ===" && \
-    ls src/generated/prisma/
+# Generate Prisma client (outputs to node_modules/.prisma/client)
+RUN npx prisma generate
 
 # Build Next.js
 RUN npx next build

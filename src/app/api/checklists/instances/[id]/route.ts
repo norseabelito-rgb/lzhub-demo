@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/auth-config'
 import { prisma } from '@/lib/prisma'
-import type { ChecklistStatus } from '@/generated/prisma'
+import type { ChecklistStatus } from '@prisma/client'
 
 export async function GET(
   _request: Request,

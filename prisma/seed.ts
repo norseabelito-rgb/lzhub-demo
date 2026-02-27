@@ -3,7 +3,7 @@
  * Run with: npx prisma db seed
  */
 
-import { PrismaClient } from '../src/generated/prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 import { addDays, subDays, format, setHours, setMinutes } from 'date-fns'

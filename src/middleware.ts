@@ -16,10 +16,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check for valid session token (explicit secret for reliability)
+  // Detect secure context (HTTPS) — behind Railway proxy, check forwarded proto
+  const proto = request.headers.get('x-forwarded-proto')
+  const isSecure = proto === 'https' || request.nextUrl.protocol === 'https:'
+
+  // Check for valid session token
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
+    secureCookie: isSecure,
   })
 
   if (!token) {

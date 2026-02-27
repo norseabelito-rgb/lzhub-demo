@@ -26,7 +26,7 @@ export interface DocumentViewerProps {
   /** Daca documentul a fost deja confirmat */
   isConfirmed?: boolean
   /** Callback pentru confirmarea documentului */
-  onConfirm?: (documentId: string) => void
+  onConfirm?: (documentId: string) => void | Promise<void>
   /** Clasa CSS suplimentara */
   className?: string
 }
@@ -47,7 +47,6 @@ export function DocumentViewer({
 }: DocumentViewerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const storeError = useOnboardingStore((state) => state.error)
-  const storeLoading = useOnboardingStore((state) => state.isLoading)
 
   // State pentru tracking
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
@@ -79,10 +78,21 @@ export function DocumentViewer({
     }
   }
 
+  // Local state for confirm feedback
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
+
   // Handler pentru confirmare
-  const handleConfirm = () => {
-    if (canConfirm) {
-      onConfirm?.(documentId)
+  const handleConfirm = async () => {
+    if (!canConfirm || isConfirming) return
+    setIsConfirming(true)
+    setLocalError(null)
+    try {
+      await onConfirm?.(documentId)
+    } catch (err) {
+      setLocalError((err as Error).message || 'Eroare la confirmarea documentului')
+    } finally {
+      setIsConfirming(false)
     }
   }
 
@@ -165,20 +175,20 @@ export function DocumentViewer({
           </div>
 
           {/* Error display */}
-          {storeError && (
+          {(localError || storeError) && (
             <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-              <span className="text-sm text-destructive">{storeError}</span>
+              <span className="text-sm text-destructive">{localError || storeError}</span>
             </div>
           )}
 
           {/* Confirm button */}
           <Button
             onClick={handleConfirm}
-            disabled={!canConfirm || storeLoading}
+            disabled={!canConfirm || isConfirming}
             className="w-full"
             variant={canConfirm ? 'default' : 'outline'}
           >
-            {storeLoading ? (
+            {isConfirming ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Se confirma...

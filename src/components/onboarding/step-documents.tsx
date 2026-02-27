@@ -96,6 +96,19 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
   // Handle document confirmation
   const handleConfirmDocument = async (documentId: string) => {
     await confirmDocument(documentId)
+
+    // Verify confirmation actually persisted in store
+    const updatedProgress = useOnboardingStore.getState().currentProgress
+    const docConfirmed = updatedProgress?.documents.find(
+      (d) => d.documentId === documentId
+    )?.confirmed
+
+    if (!docConfirmed) {
+      throw new Error(
+        useOnboardingStore.getState().error || 'Eroare la confirmarea documentului. Incercati din nou.'
+      )
+    }
+
     handleCloseDocument()
   }
 

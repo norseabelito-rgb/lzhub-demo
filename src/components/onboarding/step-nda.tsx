@@ -108,7 +108,7 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
   /**
    * Generate and download PDF, then advance to next step
    */
-  const handleDownloadPdf = useCallback((andContinue: boolean = true) => {
+  const handleDownloadPdf = useCallback(async (andContinue: boolean = true) => {
     if (!currentProgress?.nda || !user) return
 
     // Generate PDF with NDA data
@@ -124,6 +124,17 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
 
     // Advance to next step
     if (andContinue) {
+      // Persist currentStep in DB so refresh doesn't revert to NDA
+      try {
+        await fetch(`/api/onboarding/${currentProgress.employeeId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentStep: 'documents' }),
+        })
+      } catch {
+        // Non-blocking — local navigation still works
+      }
+
       goToStep('documents')
       onComplete?.()
     }

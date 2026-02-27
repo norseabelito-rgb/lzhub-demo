@@ -360,8 +360,9 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
   signNda: async (signatureDataUrl, signedBy, signedByName) => {
     const { currentProgress } = get()
     if (!currentProgress) {
-      set({ error: 'Eroare: progresul onboarding nu este incarcat. Reincarcati pagina.' })
-      return
+      const msg = 'Eroare: progresul onboarding nu este incarcat. Reincarcati pagina.'
+      set({ error: msg })
+      throw new Error(msg)
     }
 
     set({ isLoading: true, error: null })
@@ -388,6 +389,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }))
     } catch (err) {
       set({ isLoading: false, error: (err as Error).message })
+      throw err
     }
   },
 
@@ -471,8 +473,9 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
   confirmDocument: async (documentId) => {
     const { currentProgress } = get()
     if (!currentProgress) {
-      set({ error: 'Eroare: progresul onboarding nu este incarcat. Reincarcati pagina.' })
-      return
+      const msg = 'Eroare: progresul onboarding nu este incarcat. Reincarcati pagina.'
+      set({ error: msg })
+      throw new Error(msg)
     }
 
     const docProgress = currentProgress.documents.find((d) => d.documentId === documentId)
@@ -505,6 +508,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }))
     } catch (err) {
       set({ isLoading: false, error: (err as Error).message })
+      throw err
     }
   },
 

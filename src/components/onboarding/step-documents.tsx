@@ -61,6 +61,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
   const startDocument = useOnboardingStore((state) => state.startDocument)
   const confirmDocument = useOnboardingStore((state) => state.confirmDocument)
   const goToStep = useOnboardingStore((state) => state.goToStep)
+  const storeError = useOnboardingStore((state) => state.error)
 
   // Get document statuses from store
   const getDocumentStatuses = (): DocumentStatus[] => {
@@ -231,6 +232,13 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
           </Card>
         ))}
       </div>
+
+      {/* Error display */}
+      {storeError && (
+        <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+          <span className="text-sm text-destructive">{storeError}</span>
+        </div>
+      )}
 
       {/* Continue button */}
       <div className="flex justify-end pt-4">

@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, ChevronDown, ScrollText, Lock } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ScrollText, Lock, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useOnboardingStore } from '@/lib/onboarding'
 
 export interface DocumentViewerProps {
   /** ID-ul documentului */
@@ -45,6 +46,8 @@ export function DocumentViewer({
   className,
 }: DocumentViewerProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const storeError = useOnboardingStore((state) => state.error)
+  const storeLoading = useOnboardingStore((state) => state.isLoading)
 
   // State pentru tracking
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
@@ -161,14 +164,26 @@ export function DocumentViewer({
             <Progress value={hasScrolledToBottom ? 100 : 30} className="h-2" />
           </div>
 
+          {/* Error display */}
+          {storeError && (
+            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <span className="text-sm text-destructive">{storeError}</span>
+            </div>
+          )}
+
           {/* Confirm button */}
           <Button
             onClick={handleConfirm}
-            disabled={!canConfirm}
+            disabled={!canConfirm || storeLoading}
             className="w-full"
             variant={canConfirm ? 'default' : 'outline'}
           >
-            {canConfirm ? (
+            {storeLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Se confirma...
+              </>
+            ) : canConfirm ? (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 Confirm ca am citit si inteles

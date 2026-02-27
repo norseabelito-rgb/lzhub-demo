@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import type { UserRole, ShiftType } from './types'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {
@@ -73,10 +74,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     },
     async session({ session, token }) {
-      session.user.id = token.id
-      session.user.role = token.role
-      session.user.isNew = token.isNew
-      session.user.shiftType = token.shiftType
+      session.user.id = token.id as string
+      session.user.role = token.role as UserRole
+      session.user.isNew = token.isNew as boolean | undefined
+      session.user.shiftType = token.shiftType as ShiftType | undefined
       return session
     },
   },

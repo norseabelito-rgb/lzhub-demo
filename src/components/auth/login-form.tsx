@@ -63,7 +63,7 @@ export function LoginForm() {
     const result = await login(data)
 
     if (result.success) {
-      router.push('/')
+      window.location.href = '/'
     } else {
       setError(result.error || 'A aparut o eroare la autentificare')
     }

@@ -26,17 +26,30 @@ export function useAuth() {
     : null
 
   const login = async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
-    const result = await signIn('credentials', {
-      email: credentials.email,
-      password: credentials.password,
-      redirect: false,
-    })
+    try {
+      const result = await signIn('credentials', {
+        email: credentials.email,
+        password: credentials.password,
+        redirect: false,
+      })
 
-    if (result?.error) {
-      return { success: false, error: 'Email sau parola incorecta' }
+      // v5 beta may return an object with error instead of throwing
+      if (result && typeof result === 'object' && 'error' in result && result.error) {
+        return { success: false, error: 'Email sau parola incorectă' }
+      }
+
+      // Verify session was actually created
+      const sessionRes = await fetch('/api/auth/session')
+      const sessionData = await sessionRes.json()
+
+      if (!sessionData?.user) {
+        return { success: false, error: 'Email sau parola incorectă' }
+      }
+
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Email sau parola incorectă' }
     }
-
-    return { success: true }
   }
 
   const logout = async () => {

@@ -1,7 +1,7 @@
 FROM node:20 AS builder
 WORKDIR /app
 
-# Cache bust: 2026-02-27-v3
+# Cache bust: 2026-02-27-v4
 # Copy everything (node_modules, .next, src/generated, package-lock.json excluded via .dockerignore)
 COPY . .
 

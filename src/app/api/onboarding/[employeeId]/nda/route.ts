@@ -61,7 +61,8 @@ export async function POST(
     data: {
       ndaSigned: true,
       ndaSignature,
-      currentStep: 'documents',
+      // Don't advance currentStep here — let the client advance
+      // after the user downloads the PDF via the "Download PDF and continue" button
       auditLog: [...auditLog, newAuditEntry],
     },
   })

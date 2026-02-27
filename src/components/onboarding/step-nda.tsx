@@ -28,7 +28,9 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
   // Store state
   const signNda = useOnboardingStore((state) => state.signNda)
   const saveNdaPdf = useOnboardingStore((state) => state.saveNdaPdf)
+  const goToStep = useOnboardingStore((state) => state.goToStep)
   const currentProgress = useOnboardingStore((state) => state.currentProgress)
+  const storeError = useOnboardingStore((state) => state.error)
   const { user } = useAuth()
 
   // Derive signed state from store (not local state)
@@ -93,14 +95,20 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
 
     // Sign the NDA in the store
     await signNda(pendingSignature, user.id, user.name)
-    setPendingSignature(null)
-    setJustSigned(true)
+
+    // Only show success if signing actually persisted
+    const updatedProgress = useOnboardingStore.getState().currentProgress
+    if (updatedProgress?.nda) {
+      setPendingSignature(null)
+      setJustSigned(true)
+    }
+    // If failed, storeError will be set and displayed
   }, [pendingSignature, user, signNda])
 
   /**
-   * Generate and download PDF
+   * Generate and download PDF, then advance to next step
    */
-  const handleDownloadPdf = useCallback(() => {
+  const handleDownloadPdf = useCallback((andContinue: boolean = true) => {
     if (!currentProgress?.nda || !user) return
 
     // Generate PDF with NDA data
@@ -114,9 +122,12 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
     saveNdaPdf(pdfDataUrl)
     setJustDownloaded(true)
 
-    // Trigger completion callback
-    onComplete?.()
-  }, [currentProgress, user, saveNdaPdf, onComplete])
+    // Advance to next step
+    if (andContinue) {
+      goToStep('documents')
+      onComplete?.()
+    }
+  }, [currentProgress, user, saveNdaPdf, goToStep, onComplete])
 
   // Loading skeleton
   if (configLoading) {
@@ -144,15 +155,22 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
           </div>
         </div>
 
-        {/* Download button if PDF not yet downloaded */}
-        <Button
-          onClick={handleDownloadPdf}
-          variant="outline"
-          className="w-full"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Descarca PDF NDA
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => handleDownloadPdf(false)}
+            variant="outline"
+            className="flex-1"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Descarca PDF NDA
+          </Button>
+          <Button
+            onClick={() => { goToStep('documents'); onComplete?.() }}
+            className="flex-1"
+          >
+            Continua
+          </Button>
+        </div>
       </div>
     )
   }
@@ -210,6 +228,13 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
         </span>
       </div>
 
+      {/* Error display */}
+      {storeError && (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
+          <span className="text-sm text-destructive">{storeError}</span>
+        </div>
+      )}
+
       {/* Signature Section */}
       <div
         className={cn(
@@ -246,7 +271,7 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
             </div>
 
             <Button
-              onClick={handleDownloadPdf}
+              onClick={() => handleDownloadPdf()}
               variant={hasPdfGenerated || justDownloaded ? 'outline' : 'default'}
               className="w-full"
               size="lg"

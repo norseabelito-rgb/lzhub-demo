@@ -62,7 +62,7 @@ function OnboardingContent() {
       employeeId={user.id}
       employeeName={user.name}
       steps={{
-        nda: <StepNda />,
+        nda: <StepNda onComplete={() => goToStep('documents')} />,
         documents: <StepDocuments />,
         video: <StepVideo />,
         quiz: (

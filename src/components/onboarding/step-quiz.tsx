@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { QuizQuestion } from './quiz-question'
 import { QuizResults } from './quiz-results'
-import { useOnboardingStore, QUIZ_PASS_THRESHOLD, MAX_QUIZ_ATTEMPTS, QUIZ_QUESTIONS, type QuizQuestion as QuizQuestionType } from '@/lib/onboarding'
+import { useOnboardingStore, useOnboardingConfig } from '@/lib/onboarding'
 
 export interface StepQuizProps {
   /** Callback when quiz is passed and user proceeds to next step */
@@ -33,6 +33,12 @@ type QuizState = 'quiz' | 'results'
 export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizProps) {
   const { currentProgress, submitQuizAttempt, canRetryQuiz, getQuizAttemptsRemaining, goToStep } =
     useOnboardingStore()
+  const loadProgress = useOnboardingStore((state) => state.loadProgress)
+
+  // Config from DB
+  const { config: onboardingConfig } = useOnboardingConfig()
+  const QUIZ_PASS_THRESHOLD = onboardingConfig?.quizPassThreshold ?? 80
+  const MAX_QUIZ_ATTEMPTS = onboardingConfig?.quizMaxAttempts ?? 3
 
   // Quiz state
   const [quizState, setQuizState] = useState<QuizState>('quiz')
@@ -40,8 +46,8 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({})
   const [lastResult, setLastResult] = useState<{ score: number; passed: boolean } | null>(null)
 
-  // Questions
-  const questions = QUIZ_QUESTIONS
+  // Questions from config (without correctAnswer since it's public config)
+  const questions = (onboardingConfig?.questions ?? []).map(q => ({ ...q, correctAnswer: '' as string | string[] }))
   const totalQuestions = questions.length
   const currentQuestion = questions[currentQuestionIndex]
 
@@ -89,44 +95,23 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
     }
   }, [currentQuestionIndex])
 
-  // Calculate score
-  const calculateScore = useCallback((): number => {
-    let correct = 0
-
-    for (const question of questions) {
-      const userAnswer = answers[question.id]
-      const correctAnswer = question.correctAnswer
-
-      if (question.type === 'multi_select') {
-        // For multi_select, compare arrays
-        const userArr = Array.isArray(userAnswer) ? userAnswer.sort() : []
-        const correctArr = Array.isArray(correctAnswer) ? [...correctAnswer].sort() : []
-
-        if (
-          userArr.length === correctArr.length &&
-          userArr.every((val, idx) => val === correctArr[idx])
-        ) {
-          correct++
-        }
-      } else {
-        // For single answer questions
-        if (userAnswer === correctAnswer) {
-          correct++
-        }
-      }
-    }
-
-    return Math.round((correct / totalQuestions) * 100)
-  }, [answers, questions, totalQuestions])
-
-  // Submit quiz
+  // Submit quiz - server-side scoring
   const handleSubmit = useCallback(async () => {
-    const score = calculateScore()
-    const passed = await submitQuizAttempt(answers, score)
-
-    setLastResult({ score, passed })
+    const res = await fetch(`/api/onboarding/${currentProgress?.employeeId}/quiz`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers }),
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const quizResult = data._quizResult
+    // Reload progress
+    if (currentProgress?.employeeId) {
+      await loadProgress(currentProgress.employeeId)
+    }
+    setLastResult({ score: quizResult.score, passed: quizResult.passed })
     setQuizState('results')
-  }, [answers, calculateScore, submitQuizAttempt])
+  }, [answers, currentProgress, loadProgress])
 
   // Retry quiz
   const handleRetry = useCallback(() => {

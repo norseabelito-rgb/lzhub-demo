@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -13,7 +14,8 @@ import {
 import { useOnboardingStore } from '@/lib/onboarding'
 import { EmployeeStatusCard } from './employee-status-card'
 import { PhysicalHandoffForm } from './physical-handoff-form'
-import { Search, Users, CheckCircle, Clock, Package } from 'lucide-react'
+import { Search, Users, CheckCircle, Clock, Package, Settings } from 'lucide-react'
+import Link from 'next/link'
 
 type FilterOption = 'all' | 'handoff' | 'in_progress' | 'completed'
 
@@ -107,6 +109,16 @@ export function ManagerDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Config link */}
+      <div className="flex justify-end">
+        <Link href="/onboarding/config">
+          <Button variant="outline" className="gap-2">
+            <Settings className="h-4 w-4" />
+            Configureaza Onboarding
+          </Button>
+        </Link>
+      </div>
+
       {/* Stats overview */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

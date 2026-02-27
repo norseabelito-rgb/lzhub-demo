@@ -167,7 +167,7 @@ interface OnboardingActions {
   completeVideo: () => Promise<void>
 
   // Quiz Step
-  submitQuizAttempt: (answers: Record<string, string | string[]>, score: number) => Promise<boolean>
+  submitQuizAttempt: (answers: Record<string, string | string[]>) => Promise<boolean>
   canRetryQuiz: () => boolean
   getQuizAttemptsRemaining: () => number
 
@@ -505,7 +505,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
   areAllDocumentsConfirmed: () => {
     const { currentProgress } = get()
     if (!currentProgress) return false
-    return currentProgress.documents.length >= 3 && currentProgress.documents.every((d) => d.confirmed)
+    return currentProgress.documents.length > 0 && currentProgress.documents.every((d) => d.confirmed)
   },
 
   // ========== Video Step ==========
@@ -576,19 +576,16 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
 
   // ========== Quiz Step ==========
 
-  submitQuizAttempt: async (answers, score) => {
-    const { currentProgress, canRetryQuiz } = get()
+  submitQuizAttempt: async (answers) => {
+    const { currentProgress } = get()
     if (!currentProgress) return false
-    if (!canRetryQuiz() && currentProgress.quizAttempts.length >= MAX_QUIZ_ATTEMPTS) return false
-
-    const passed = score >= QUIZ_PASS_THRESHOLD
 
     set({ isLoading: true, error: null })
     try {
       const res = await fetch(`/api/onboarding/${currentProgress.employeeId}/quiz`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers, score, passed }),
+        body: JSON.stringify({ answers }),
       })
 
       if (!res.ok) {
@@ -598,6 +595,8 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
 
       const data = await res.json()
       const progress = mapApiToProgress(data)
+      const quizResult = data._quizResult
+
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
@@ -606,7 +605,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
         isLoading: false,
       }))
 
-      return passed
+      return quizResult?.passed ?? false
     } catch (err) {
       set({ isLoading: false, error: (err as Error).message })
       return false

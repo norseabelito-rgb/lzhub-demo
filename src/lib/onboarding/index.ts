@@ -33,6 +33,21 @@ export {
 } from './content'
 export type { TrainingDocument, VideoChapter, QuizQuestion, QuizOption } from './content'
 
+// Config types & store
+export type {
+  OnboardingConfig,
+  OnboardingPublicConfig,
+  OnboardingConfigDocument,
+  OnboardingConfigChapter,
+  OnboardingConfigQuestion,
+  OnboardingPublicQuestion,
+  QuestionType,
+  QuizQuestionOption,
+} from './config-types'
+export { useOnboardingConfigStore } from './config-store'
+export type { OnboardingConfigStore } from './config-store'
+export { useOnboardingConfig } from './use-onboarding-config'
+
 // PDF generation
 export { generateNdaPdf, downloadNdaPdf, generateAndDownloadNdaPdf } from './pdf-generator'
 export type { NdaPdfData } from './pdf-generator'

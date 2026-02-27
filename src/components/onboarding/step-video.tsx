@@ -18,7 +18,7 @@ import {
   Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useOnboardingStore, TRAINING_VIDEO_URL, VIDEO_CHAPTERS } from '@/lib/onboarding'
+import { useOnboardingStore, useOnboardingConfig } from '@/lib/onboarding'
 import { OnboardingVideoPlayer } from './video-player'
 
 export interface StepVideoProps {
@@ -35,6 +35,9 @@ export interface StepVideoProps {
  * - Trebuie sa ajunga la 100% pentru a continua
  */
 export function StepVideo({ onComplete, className }: StepVideoProps) {
+  // Config from DB
+  const { config: onboardingConfig } = useOnboardingConfig()
+
   // Store actions and state
   const currentProgress = useOnboardingStore((state) => state.currentProgress)
   const updateVideoProgress = useOnboardingStore((state) => state.updateVideoProgress)
@@ -125,7 +128,16 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
         </CardContent>
       </Card>
 
+      {/* Fallback if no video URL */}
+      {!onboardingConfig?.videoUrl && <Card><CardContent className="py-8 text-center text-muted-foreground">Niciun video configurat. Contactati managerul.</CardContent></Card>}
+
+      {/* Video description */}
+      {onboardingConfig?.videoDescription && (
+        <p className="text-sm text-muted-foreground">{onboardingConfig.videoDescription}</p>
+      )}
+
       {/* Video player */}
+      {onboardingConfig?.videoUrl && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -138,7 +150,7 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
         </CardHeader>
         <CardContent>
           <OnboardingVideoPlayer
-            url={TRAINING_VIDEO_URL}
+            url={onboardingConfig.videoUrl}
             onProgress={handleProgress}
             onComplete={handleComplete}
             initialProgress={
@@ -154,6 +166,7 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
           />
         </CardContent>
       </Card>
+      )}
 
       {/* Chapters/table of contents */}
       <Card>
@@ -165,7 +178,7 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {VIDEO_CHAPTERS.map((chapter, index) => (
+            {(onboardingConfig?.chapters ?? []).map((chapter, index) => (
               <div
                 key={index}
                 className={cn(

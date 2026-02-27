@@ -1,9 +1,19 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import type { QuizQuestion as QuizQuestionType, QuizOption } from '@/lib/onboarding/content'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+
+interface QuizOption { id: string; text: string }
+
+interface QuizQuestionType {
+  id: string
+  text: string
+  type: string
+  options: QuizOption[]
+  correctAnswer: string | string[]
+}
 
 export interface QuizQuestionProps {
   /** The question data */
@@ -81,6 +91,7 @@ export function QuizQuestion({
       </div>
 
       {/* Options */}
+      {question.type !== 'open_text' && (
       <div className="flex flex-col gap-3">
         {question.options.map((option) => (
           <OptionItem
@@ -93,6 +104,19 @@ export function QuizQuestion({
           />
         ))}
       </div>
+      )}
+
+      {question.type === 'open_text' && (
+        <div className="space-y-2">
+          <Textarea
+            value={typeof selectedAnswer === 'string' ? selectedAnswer : ''}
+            onChange={(e) => onAnswerChange(e.target.value)}
+            placeholder="Scrieti raspunsul..."
+            disabled={disabled}
+            rows={4}
+          />
+        </div>
+      )}
     </div>
   )
 }

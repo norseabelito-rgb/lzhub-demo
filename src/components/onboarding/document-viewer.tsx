@@ -5,7 +5,7 @@
  * Necesita scroll-to-bottom inainte de confirmare
  */
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -20,6 +20,8 @@ export interface DocumentViewerProps {
   title: string
   /** Continutul documentului (text sau HTML) */
   content: string
+  /** Minimum reading time in seconds before confirm unlocks */
+  minReadingSeconds?: number
   /** Daca documentul a fost deja confirmat */
   isConfirmed?: boolean
   /** Callback pentru confirmarea documentului */
@@ -37,6 +39,7 @@ export function DocumentViewer({
   documentId,
   title,
   content,
+  minReadingSeconds,
   isConfirmed = false,
   onConfirm,
   className,
@@ -46,9 +49,19 @@ export function DocumentViewer({
   // State pentru tracking
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
   const [showScrollHint, setShowScrollHint] = useState(true)
+  const [timeElapsed, setTimeElapsed] = useState(0)
+
+  // Timer for minimum reading time
+  useEffect(() => {
+    if (!minReadingSeconds || minReadingSeconds <= 0 || isConfirmed) return
+    const interval = setInterval(() => {
+      setTimeElapsed((prev) => prev + 1)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [minReadingSeconds, isConfirmed])
 
   // Conditia pentru deblocarea butonului de confirmare
-  const canConfirm = hasScrolledToBottom && !isConfirmed
+  const canConfirm = hasScrolledToBottom && !isConfirmed && (!minReadingSeconds || timeElapsed >= minReadingSeconds)
 
   // Detecteaza scroll-to-bottom
   const handleScroll = () => {
@@ -123,9 +136,7 @@ export function DocumentViewer({
           className="h-[400px] overflow-y-auto p-6 relative"
         >
           {/* Document text */}
-          <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-            {content}
-          </div>
+          <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
 
           {/* Scroll hint overlay */}
           {showScrollHint && !hasScrolledToBottom && (

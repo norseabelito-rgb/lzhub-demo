@@ -337,7 +337,75 @@ model Warning {
 }
 
 // ============================================================================
-// ONBOARDING
+// ONBOARDING CONFIG (Manager-customizable)
+// ============================================================================
+
+model OnboardingConfig {
+  id                String   @id @default("default")
+  ndaContent        String   @db.Text
+  videoUrl          String?
+  videoFileName     String?
+  videoFileSize     Int?
+  videoDescription  String?  @db.Text
+  quizPassThreshold Int      @default(80)
+  quizMaxAttempts   Int      @default(3)
+  updatedAt         DateTime @updatedAt
+  updatedBy         String?
+  documents         OnboardingDocument[]
+  chapters          OnboardingVideoChapter[]
+  questions         OnboardingQuizQuestion[]
+  @@map("onboarding_config")
+}
+
+model OnboardingDocument {
+  id                String   @id @default(cuid())
+  configId          String   @default("default")
+  title             String
+  content           String   @db.Text
+  minReadingSeconds Int      @default(30)
+  sortOrder         Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  config            OnboardingConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  @@index([configId, sortOrder])
+  @@map("onboarding_documents")
+}
+
+model OnboardingVideoChapter {
+  id        String   @id @default(cuid())
+  configId  String   @default("default")
+  title     String
+  timestamp Int
+  sortOrder Int
+  config    OnboardingConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  @@index([configId, sortOrder])
+  @@map("onboarding_video_chapters")
+}
+
+enum QuestionType {
+  multiple_choice
+  true_false
+  multi_select
+  open_text
+}
+
+model OnboardingQuizQuestion {
+  id            String       @id @default(cuid())
+  configId      String       @default("default")
+  type          QuestionType
+  text          String       @db.Text
+  options       Json         @default("[]")
+  correctAnswer Json
+  sortOrder     Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  config        OnboardingConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  @@index([configId, sortOrder])
+  @@map("onboarding_quiz_questions")
+}
+
+// ============================================================================
+// ONBOARDING PROGRESS
 // ============================================================================
 
 model OnboardingProgress {

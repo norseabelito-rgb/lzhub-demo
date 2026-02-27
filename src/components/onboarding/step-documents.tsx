@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useOnboardingStore, TRAINING_DOCUMENTS, type TrainingDocument } from '@/lib/onboarding'
+import { useOnboardingStore, useOnboardingConfig } from '@/lib/onboarding'
 import { DocumentViewer } from './document-viewer'
 
 export interface StepDocumentsProps {
@@ -29,8 +29,15 @@ export interface StepDocumentsProps {
   className?: string
 }
 
+interface LocalTrainingDocument {
+  id: string
+  title: string
+  content: string
+  minimumReadingSeconds: number
+}
+
 interface DocumentStatus {
-  document: TrainingDocument
+  document: LocalTrainingDocument
   isStarted: boolean
   isConfirmed: boolean
   timeSpent: number
@@ -45,16 +52,19 @@ interface DocumentStatus {
 export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null)
 
+  // Config from DB
+  const { config: onboardingConfig } = useOnboardingConfig()
+  const trainingDocuments: LocalTrainingDocument[] = (onboardingConfig?.documents ?? []).map(d => ({ id: d.id, title: d.title, content: d.content, minimumReadingSeconds: d.minReadingSeconds }))
+
   // Store actions and state
   const currentProgress = useOnboardingStore((state) => state.currentProgress)
   const startDocument = useOnboardingStore((state) => state.startDocument)
   const confirmDocument = useOnboardingStore((state) => state.confirmDocument)
-  const areAllDocumentsConfirmed = useOnboardingStore((state) => state.areAllDocumentsConfirmed)
   const goToStep = useOnboardingStore((state) => state.goToStep)
 
   // Get document statuses from store
   const getDocumentStatuses = (): DocumentStatus[] => {
-    return TRAINING_DOCUMENTS.map((doc) => {
+    return trainingDocuments.map((doc) => {
       const progress = currentProgress?.documents.find((d) => d.documentId === doc.id)
       return {
         document: doc,
@@ -67,9 +77,9 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
 
   const documentStatuses = getDocumentStatuses()
   const confirmedCount = documentStatuses.filter((d) => d.isConfirmed).length
-  const totalCount = TRAINING_DOCUMENTS.length
-  const progressPercent = (confirmedCount / totalCount) * 100
-  const allConfirmed = areAllDocumentsConfirmed()
+  const totalCount = trainingDocuments.length
+  const progressPercent = totalCount > 0 ? (confirmedCount / totalCount) * 100 : 0
+  const allConfirmed = trainingDocuments.length > 0 && currentProgress?.documents.length === trainingDocuments.length && currentProgress.documents.every(d => d.confirmed)
 
   // Open document viewer
   const handleOpenDocument = (documentId: string) => {
@@ -98,7 +108,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
 
   // Get active document
   const activeDocument = activeDocumentId
-    ? TRAINING_DOCUMENTS.find((d) => d.id === activeDocumentId)
+    ? trainingDocuments.find((d) => d.id === activeDocumentId)
     : null
   const activeStatus = activeDocumentId
     ? documentStatuses.find((d) => d.document.id === activeDocumentId)
@@ -123,6 +133,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
           documentId={activeDocument.id}
           title={activeDocument.title}
           content={activeDocument.content}
+          minReadingSeconds={activeDocument.minimumReadingSeconds}
           isConfirmed={activeStatus.isConfirmed}
           onConfirm={handleConfirmDocument}
         />

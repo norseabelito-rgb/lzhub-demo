@@ -1,7 +1,9 @@
 /**
- * Static content for onboarding system
- * NDA text, training documents, video chapters, and quiz questions
- * This is UI content, not database data.
+ * Static content for onboarding system - SEED/FALLBACK ONLY
+ *
+ * This file is used as seed data for the OnboardingConfig database table.
+ * The actual content is now managed by managers via /onboarding/config.
+ * Exports remain for backward compatibility with the seed script.
  */
 
 // ============================================================================

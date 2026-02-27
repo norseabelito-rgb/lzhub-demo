@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { useOnboardingStore, NDA_TEXT, generateAndDownloadNdaPdf } from '@/lib/onboarding'
+import { useOnboardingStore, useOnboardingConfig, generateAndDownloadNdaPdf } from '@/lib/onboarding'
 import { useAuth } from '@/lib/auth'
 import { SignatureCanvas } from '@/components/warnings/signature-canvas'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,9 @@ export interface StepNdaProps {
  * - Generates downloadable PDF after signing
  */
 export function StepNda({ className, onComplete }: StepNdaProps) {
+  // Config from DB
+  const { config, isLoading: configLoading } = useOnboardingConfig()
+
   // Store state
   const signNda = useOnboardingStore((state) => state.signNda)
   const saveNdaPdf = useOnboardingStore((state) => state.saveNdaPdf)
@@ -115,6 +118,11 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
     onComplete?.()
   }, [currentProgress, user, saveNdaPdf, onComplete])
 
+  // Loading skeleton
+  if (configLoading) {
+    return <div className="animate-pulse space-y-4"><div className="h-4 bg-muted rounded w-3/4" /><div className="h-4 bg-muted rounded w-full" /><div className="h-4 bg-muted rounded w-5/6" /></div>
+  }
+
   // If already completed, show success state
   if (isAlreadySigned && currentProgress?.nda) {
     const signedDate = new Date(currentProgress.nda.signedAt)
@@ -174,9 +182,7 @@ export function StepNda({ className, onComplete }: StepNdaProps) {
             'scrollbar-thin scrollbar-track-muted scrollbar-thumb-muted-foreground/30'
           )}
         >
-          <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-            {NDA_TEXT}
-          </div>
+          <div className="prose prose-sm prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: config?.ndaContent ?? '' }} />
         </div>
 
         {/* Scroll indicator when not at bottom */}

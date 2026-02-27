@@ -246,11 +246,9 @@ export function OnboardingVideoPlayer({
           onReady={handleReady}
           progressInterval={1000}
           config={{
-            youtube: {
-              playerVars: {
-                controls: 0,
-                disablekb: 1,
-                modestbranding: 1,
+            file: {
+              attributes: {
+                controlsList: 'nodownload',
               },
             },
           }}

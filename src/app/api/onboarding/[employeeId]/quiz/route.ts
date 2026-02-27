@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/auth-config'
 import { prisma } from '@/lib/prisma'
 
-const MAX_QUIZ_ATTEMPTS = 3
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ employeeId: string }> }
@@ -20,14 +18,26 @@ export async function POST(
   }
 
   const body = await request.json()
-  const { answers, score, passed } = body
+  const { answers } = body as { answers: Record<string, string | string[]> }
 
-  if (answers === undefined || score === undefined || passed === undefined) {
-    return NextResponse.json(
-      { error: 'answers, score si passed sunt obligatorii' },
-      { status: 400 }
-    )
+  if (!answers) {
+    return NextResponse.json({ error: 'answers este obligatoriu' }, { status: 400 })
   }
+
+  // Load config for scoring
+  const config = await prisma.onboardingConfig.findUnique({
+    where: { id: 'default' },
+    include: {
+      questions: { orderBy: { sortOrder: 'asc' } },
+    },
+  })
+
+  if (!config) {
+    return NextResponse.json({ error: 'Config negasit' }, { status: 500 })
+  }
+
+  const maxAttempts = config.quizMaxAttempts
+  const passThreshold = config.quizPassThreshold
 
   const existing = await prisma.onboardingProgress.findUnique({
     where: { employeeId },
@@ -41,7 +51,7 @@ export async function POST(
     ? [...(existing.quizAttempts as Record<string, unknown>[])]
     : []
 
-  if (quizAttempts.length >= MAX_QUIZ_ATTEMPTS) {
+  if (quizAttempts.length >= maxAttempts) {
     return NextResponse.json(
       { error: 'Numarul maxim de incercari a fost atins' },
       { status: 400 }
@@ -51,6 +61,40 @@ export async function POST(
   if (existing.quizPassed) {
     return NextResponse.json({ error: 'Quiz-ul a fost deja trecut' }, { status: 400 })
   }
+
+  // Server-side scoring
+  let correct = 0
+  const totalQuestions = config.questions.length
+
+  for (const question of config.questions) {
+    const userAnswer = answers[question.id]
+    const correctAnswer = question.correctAnswer
+
+    if (question.type === 'open_text') {
+      // Open text questions are always counted as correct (manually graded later)
+      correct++
+      continue
+    }
+
+    if (question.type === 'multi_select') {
+      const userArr = Array.isArray(userAnswer) ? [...userAnswer].sort() : []
+      const correctArr = Array.isArray(correctAnswer) ? [...(correctAnswer as string[])].sort() : []
+
+      if (
+        userArr.length === correctArr.length &&
+        userArr.every((val, idx) => val === correctArr[idx])
+      ) {
+        correct++
+      }
+    } else {
+      if (userAnswer === correctAnswer) {
+        correct++
+      }
+    }
+  }
+
+  const score = totalQuestions > 0 ? Math.round((correct / totalQuestions) * 100) : 0
+  const passed = score >= passThreshold
 
   const now = new Date()
   const attemptNumber = quizAttempts.length + 1
@@ -88,7 +132,6 @@ export async function POST(
     updateData.quizBestScore = score
     updateData.currentStep = 'notification'
   } else {
-    // Update best score if better
     const currentBest = existing.quizBestScore || 0
     if (score > currentBest) {
       updateData.quizBestScore = score
@@ -100,5 +143,6 @@ export async function POST(
     data: updateData,
   })
 
-  return NextResponse.json(progress)
+  // Return score and passed status (not the correct answers)
+  return NextResponse.json({ ...progress, _quizResult: { score, passed, attemptNumber } })
 }

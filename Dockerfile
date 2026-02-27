@@ -16,7 +16,7 @@ RUN npx prisma generate
 RUN npx next build
 
 # Production image
-FROM node:20-slim AS runner
+FROM node:20 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

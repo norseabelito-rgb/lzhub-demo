@@ -14,6 +14,12 @@ export async function POST(
   const { employeeId } = await params
 
   if (session.user.id !== employeeId && session.user.role !== 'manager') {
+    console.error('[NDA] Acces interzis:', {
+      sessionUserId: session.user.id,
+      employeeId,
+      role: session.user.role,
+      match: session.user.id === employeeId,
+    })
     return NextResponse.json({ error: 'Acces interzis' }, { status: 403 })
   }
 

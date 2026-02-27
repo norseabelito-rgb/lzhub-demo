@@ -61,6 +61,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.shiftType = user.shiftType
       }
 
+      // Ensure id is always set (fallback to sub which NextAuth sets automatically)
+      if (!token.id && token.sub) {
+        token.id = token.sub
+      }
+
       // Allow session updates (e.g. markOnboardingComplete)
       if (trigger === 'update' && session) {
         if (session.isNew !== undefined) {
@@ -74,7 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     },
     async session({ session, token }) {
-      session.user.id = token.id as string
+      session.user.id = (token.id ?? token.sub) as string
       session.user.role = token.role as UserRole
       session.user.isNew = token.isNew as boolean | undefined
       session.user.shiftType = token.shiftType as ShiftType | undefined

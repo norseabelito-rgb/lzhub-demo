@@ -43,11 +43,12 @@ export async function POST(
     return NextResponse.json({ error: 'Neautorizat' }, { status: 401 })
   }
 
-  if (session.user.role !== 'manager') {
+  const { employeeId } = await params
+
+  // Managers can create for anyone; employees can only create their own
+  if (session.user.role !== 'manager' && session.user.id !== employeeId) {
     return NextResponse.json({ error: 'Acces interzis' }, { status: 403 })
   }
-
-  const { employeeId } = await params
   const body = await request.json()
   const { employeeName } = body
 

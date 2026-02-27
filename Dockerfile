@@ -9,6 +9,11 @@ COPY . .
 # Also runs postinstall which generates Prisma client
 RUN npm install
 
+# Generate Prisma client explicitly (postinstall may have failed silently)
+RUN npx prisma generate && \
+    echo "=== Prisma client generated ===" && \
+    ls src/generated/prisma/
+
 # Build Next.js
 RUN npx next build
 

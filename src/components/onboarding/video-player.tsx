@@ -8,7 +8,7 @@
 import { useState, useRef, useSyncExternalStore } from 'react'
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
-import { Play, Pause, RotateCcw, Volume2, VolumeX, CheckCircle2 } from 'lucide-react'
+import { Play, Pause, RotateCcw, Volume2, VolumeX, CheckCircle2, Video } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Dynamic import for react-player to avoid SSR issues and type problems
@@ -132,6 +132,7 @@ export function OnboardingVideoPlayer({
   const [completed, setCompleted] = useState(initialCompleted)
   const [isReady, setIsReady] = useState(false)
   const [isSeeking, setIsSeeking] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Ref pentru a evita actualizari duplicate
   const lastSavedPosition = useRef(0)
@@ -204,12 +205,20 @@ export function OnboardingVideoPlayer({
   // Handler pentru ready
   const handleReady = () => {
     setIsReady(true)
+    setLoadError(null)
 
     // Seek la pozitia salvata
     const seekPosition = initialProgress?.lastPosition ?? storedProgress?.lastPosition
     if (seekPosition && playerRef.current) {
       playerRef.current.seekTo(seekPosition, 'seconds')
     }
+  }
+
+  // Handler pentru eroare la incarcare video
+  const handleError = (error: unknown) => {
+    console.error('[VideoPlayer] Error loading video:', error)
+    setLoadError('Video-ul nu a putut fi incarcat. Verificati ca fisierul exista si formatul este suportat.')
+    setIsReady(false)
   }
 
   // Formatare timp (mm:ss)
@@ -244,6 +253,7 @@ export function OnboardingVideoPlayer({
           onDuration={handleDuration}
           onEnded={handleEnded}
           onReady={handleReady}
+          onError={handleError}
           progressInterval={1000}
           config={{
             file: {
@@ -262,10 +272,28 @@ export function OnboardingVideoPlayer({
           </div>
         )}
 
-        {/* Loading indicator */}
+        {/* Loading / Error indicator */}
         {!isReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-black">
-            <div className="animate-pulse text-muted-foreground">Se incarca...</div>
+            {loadError ? (
+              <div className="text-center space-y-3 p-6 max-w-md">
+                <Video className="h-12 w-12 mx-auto text-destructive/70" />
+                <p className="text-sm text-destructive">{loadError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLoadError(null)
+                    // Force re-render by toggling a state
+                    setIsReady(false)
+                  }}
+                >
+                  Reincearca
+                </Button>
+              </div>
+            ) : (
+              <div className="animate-pulse text-muted-foreground">Se incarca...</div>
+            )}
           </div>
         )}
       </div>

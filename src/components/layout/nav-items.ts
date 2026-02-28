@@ -7,6 +7,8 @@ import {
   FolderOpen,
   Share2,
   QrCode,
+  Users,
+  Settings,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/auth'
@@ -16,6 +18,8 @@ export interface NavItem {
   href: string
   icon: LucideIcon
   roles: UserRole[]
+  /** Indent level for sub-items */
+  indent?: boolean
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -53,7 +57,21 @@ export const NAV_ITEMS: NavItem[] = [
     label: 'Onboarding',
     href: '/onboarding',
     icon: UserPlus,
+    roles: ['angajat', 'manager'],
+  },
+  {
+    label: 'Onboarding Admin',
+    href: '/onboarding/admin',
+    icon: Users,
     roles: ['manager'],
+    indent: true,
+  },
+  {
+    label: 'Onboarding Config',
+    href: '/onboarding/config',
+    icon: Settings,
+    roles: ['manager'],
+    indent: true,
   },
   {
     label: 'Drive',

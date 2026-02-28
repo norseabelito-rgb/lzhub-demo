@@ -40,13 +40,14 @@ export function Sidebar({ userRole }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                  'flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200',
+                  item.indent ? 'px-3 pl-8 py-2' : 'px-3 py-2.5',
                   isActive
                     ? 'bg-primary/15 text-primary border-l-2 border-primary glow-subtle'
                     : 'text-sidebar-foreground hover:bg-primary/10 hover:text-primary'
                 )}
               >
-                <Icon className={cn('h-5 w-5', isActive && 'text-primary')} />
+                <Icon className={cn(item.indent ? 'h-4 w-4' : 'h-5 w-5', isActive && 'text-primary')} />
                 {item.label}
               </Link>
             )

@@ -185,6 +185,7 @@ interface OnboardingActions {
   getAllIncompleteOnboarding: () => OnboardingProgress[]
   getOnboardingByEmployee: (employeeId: string) => OnboardingProgress | undefined
   fetchAllIncomplete: () => Promise<void>
+  fetchAllProgress: () => Promise<void>
 }
 
 export type OnboardingStore = OnboardingState & OnboardingActions
@@ -829,6 +830,21 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const res = await fetch('/api/onboarding?incomplete=true')
+      if (!res.ok) {
+        throw new Error('Eroare la incarcarea datelor')
+      }
+      const records = await res.json()
+      const allProgress = (records as Record<string, unknown>[]).map(mapApiToProgress)
+      set({ allProgress, isLoading: false })
+    } catch (err) {
+      set({ isLoading: false, error: (err as Error).message })
+    }
+  },
+
+  fetchAllProgress: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await fetch('/api/onboarding')
       if (!res.ok) {
         throw new Error('Eroare la incarcarea datelor')
       }

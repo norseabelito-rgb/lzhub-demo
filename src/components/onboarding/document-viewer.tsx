@@ -204,6 +204,17 @@ export function DocumentViewer({
             </div>
           )}
 
+          {/* Reading timer indicator */}
+          {hasScrolledToBottom && minReadingSeconds && minReadingSeconds > 0 && timeElapsed < minReadingSeconds && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Timp minim de citire</span>
+                <span>{Math.max(0, minReadingSeconds - timeElapsed)}s ramase</span>
+              </div>
+              <Progress value={(timeElapsed / minReadingSeconds) * 100} className="h-2" />
+            </div>
+          )}
+
           {/* Confirm button */}
           <Button
             onClick={handleConfirm}
@@ -220,6 +231,11 @@ export function DocumentViewer({
               <>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 Confirm ca am citit si inteles
+              </>
+            ) : hasScrolledToBottom ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Asteptati {Math.max(0, (minReadingSeconds ?? 0) - timeElapsed)}s...
               </>
             ) : (
               <>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +37,13 @@ export function ManagerDashboard() {
   } | null>(null)
 
   const allProgress = useOnboardingStore((state) => state.allProgress)
+  const fetchAllProgress = useOnboardingStore((state) => state.fetchAllProgress)
+  const isLoading = useOnboardingStore((state) => state.isLoading)
+
+  // Fetch all onboarding progress on mount
+  useEffect(() => {
+    fetchAllProgress()
+  }, [fetchAllProgress])
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -212,7 +219,14 @@ export function ManagerDashboard() {
       </Card>
 
       {/* Employee cards grid */}
-      {filteredProgress.length > 0 ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
+            <p className="text-muted-foreground">Se incarca datele...</p>
+          </CardContent>
+        </Card>
+      ) : filteredProgress.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProgress.map((progress) => (
             <EmployeeStatusCard

@@ -133,7 +133,15 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
 
       {/* Video description */}
       {onboardingConfig?.videoDescription && (
-        <p className="text-sm text-muted-foreground">{onboardingConfig.videoDescription}</p>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Info className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Despre video</span>
+            </div>
+            <p className="text-sm text-muted-foreground">{onboardingConfig.videoDescription}</p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Video player */}

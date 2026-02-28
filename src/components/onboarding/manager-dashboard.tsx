@@ -38,6 +38,7 @@ export function ManagerDashboard() {
 
   const allProgress = useOnboardingStore((state) => state.allProgress)
   const fetchAllProgress = useOnboardingStore((state) => state.fetchAllProgress)
+  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding)
   const isLoading = useOnboardingStore((state) => state.isLoading)
 
   // Fetch all onboarding progress on mount
@@ -233,6 +234,7 @@ export function ManagerDashboard() {
               key={progress.employeeId}
               progress={progress}
               onMarkHandoff={handleMarkHandoff}
+              onResetOnboarding={resetOnboarding}
             />
           ))}
         </div>

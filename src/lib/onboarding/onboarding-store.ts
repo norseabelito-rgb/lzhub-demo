@@ -186,6 +186,9 @@ interface OnboardingActions {
   getOnboardingByEmployee: (employeeId: string) => OnboardingProgress | undefined
   fetchAllIncomplete: () => Promise<void>
   fetchAllProgress: () => Promise<void>
+
+  // Manager Actions
+  resetOnboarding: (employeeId: string) => Promise<void>
 }
 
 export type OnboardingStore = OnboardingState & OnboardingActions
@@ -853,6 +856,37 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       set({ allProgress, isLoading: false })
     } catch (err) {
       set({ isLoading: false, error: (err as Error).message })
+    }
+  },
+
+  // ========== Manager Actions ==========
+
+  resetOnboarding: async (employeeId) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await fetch(`/api/onboarding/${employeeId}/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Eroare la resetarea onboarding-ului')
+      }
+
+      const data = await res.json()
+      const progress = mapApiToProgress(data)
+      set((state) => ({
+        currentProgress:
+          state.currentProgress?.employeeId === employeeId ? progress : state.currentProgress,
+        allProgress: state.allProgress.map((p) =>
+          p.employeeId === employeeId ? progress : p
+        ),
+        isLoading: false,
+      }))
+    } catch (err) {
+      set({ isLoading: false, error: (err as Error).message })
+      throw err
     }
   },
 }))

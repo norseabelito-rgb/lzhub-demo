@@ -1,18 +1,28 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { User, Clock, CheckCircle, FileText, Video, HelpCircle, Package } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { User, Clock, CheckCircle, FileText, Video, HelpCircle, Package, RotateCcw } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 import { ro } from 'date-fns/locale'
 import type { OnboardingProgress } from '@/lib/onboarding/types'
-import { ONBOARDING_STEP_LABELS } from '@/lib/onboarding'
+import { ONBOARDING_STEP_LABELS, useOnboardingConfig } from '@/lib/onboarding'
 
 interface EmployeeStatusCardProps {
   progress: OnboardingProgress
   onMarkHandoff: (employeeId: string) => void
+  onResetOnboarding?: (employeeId: string) => Promise<void>
 }
 
 /**
@@ -24,15 +34,15 @@ interface EmployeeStatusCardProps {
  * - Quiz passed
  * - Handoff confirmed
  */
-function calculateProgress(progress: OnboardingProgress): number {
+function calculateProgress(progress: OnboardingProgress, totalDocuments: number): number {
   let completed = 0
   const total = 5
 
   // NDA signed
   if (progress.nda) completed++
 
-  // All documents confirmed (3 required)
-  if (progress.documents.length >= 3 && progress.documents.every((d) => d.confirmed)) {
+  // All documents confirmed
+  if (totalDocuments > 0 && progress.documents.filter((d) => d.confirmed).length >= totalDocuments) {
     completed++
   }
 
@@ -57,8 +67,12 @@ function getStepBadgeVariant(step: string): 'default' | 'secondary' | 'outline' 
   return 'outline'
 }
 
-export function EmployeeStatusCard({ progress, onMarkHandoff }: EmployeeStatusCardProps) {
-  const progressPercent = calculateProgress(progress)
+export function EmployeeStatusCard({ progress, onMarkHandoff, onResetOnboarding }: EmployeeStatusCardProps) {
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+  const { config: onboardingConfig } = useOnboardingConfig()
+  const totalDocuments = onboardingConfig?.documents?.length ?? 0
+  const progressPercent = calculateProgress(progress, totalDocuments)
   const daysInOnboarding = differenceInDays(new Date(), new Date(progress.startedAt))
   const currentStepLabel = ONBOARDING_STEP_LABELS[progress.currentStep]
 
@@ -139,14 +153,14 @@ export function EmployeeStatusCard({ progress, onMarkHandoff }: EmployeeStatusCa
 
             {/* Documents */}
             <div className="flex items-center gap-2">
-              {progress.documents.length >= 3 && progress.documents.every((d) => d.confirmed) ? (
+              {totalDocuments > 0 && progress.documents.filter((d) => d.confirmed).length >= totalDocuments ? (
                 <CheckCircle className="size-4 text-green-500" />
               ) : (
                 <div className="size-4 rounded-full border border-muted-foreground/30" />
               )}
               <FileText className="size-4 text-muted-foreground" />
-              <span className={progress.documents.every((d) => d.confirmed) ? 'text-foreground' : 'text-muted-foreground'}>
-                Documente {progress.documents.filter((d) => d.confirmed).length}/3 citite
+              <span className={totalDocuments > 0 && progress.documents.filter((d) => d.confirmed).length >= totalDocuments ? 'text-foreground' : 'text-muted-foreground'}>
+                Documente {progress.documents.filter((d) => d.confirmed).length}/{totalDocuments} citite
               </span>
             </div>
 
@@ -224,6 +238,59 @@ export function EmployeeStatusCard({ progress, onMarkHandoff }: EmployeeStatusCa
             <Clock className="size-4" />
             <span>Asteapta confirmarea angajatului</span>
           </div>
+        )}
+
+        {/* Reset onboarding button */}
+        {onResetOnboarding && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 text-destructive hover:text-destructive"
+              onClick={() => setResetDialogOpen(true)}
+            >
+              <RotateCcw className="size-4" />
+              Reseteaza onboarding
+            </Button>
+
+            <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reseteaza onboarding</DialogTitle>
+                  <DialogDescription>
+                    Esti sigur ca vrei sa resetezi onboarding-ul pentru <strong>{progress.employeeName}</strong>?
+                    Tot progresul va fi sters si angajatul va trebui sa reia procesul de la inceput.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setResetDialogOpen(false)}
+                    disabled={isResetting}
+                  >
+                    Anuleaza
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    disabled={isResetting}
+                    onClick={async () => {
+                      setIsResetting(true)
+                      try {
+                        await onResetOnboarding(progress.employeeId)
+                        setResetDialogOpen(false)
+                      } catch {
+                        // Error is handled by the store
+                      } finally {
+                        setIsResetting(false)
+                      }
+                    }}
+                  >
+                    {isResetting ? 'Se reseteaza...' : 'Reseteaza'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </CardContent>
     </Card>

@@ -57,11 +57,12 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
 
   // Check if current question is answered
   const isCurrentAnswered = useMemo(() => {
+    if (!currentQuestion) return false
     const answer = answers[currentQuestion.id]
     if (answer === undefined || answer === null) return false
     if (Array.isArray(answer)) return answer.length > 0
     return answer !== ''
-  }, [answers, currentQuestion.id])
+  }, [answers, currentQuestion?.id])
 
   // Check if all questions are answered
   const allAnswered = answeredCount === totalQuestions

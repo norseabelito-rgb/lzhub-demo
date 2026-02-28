@@ -177,7 +177,7 @@ export function VideoConfig() {
           {config?.videoUrl ? (
             <div className="space-y-4">
               <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                <video src={config.videoUrl} controls className="w-full h-full" />
+                <video src="/api/onboarding/config/video/stream" controls className="w-full h-full" />
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">

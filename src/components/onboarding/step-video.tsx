@@ -158,7 +158,7 @@ export function StepVideo({ onComplete, className }: StepVideoProps) {
         </CardHeader>
         <CardContent>
           <OnboardingVideoPlayer
-            url={onboardingConfig.videoUrl}
+            url="/api/onboarding/config/video/stream"
             onProgress={handleProgress}
             onComplete={handleComplete}
             initialProgress={

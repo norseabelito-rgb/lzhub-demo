@@ -1,38 +1,17 @@
 'use client'
 
 /**
- * OnboardingVideoPlayer - Video player cu prevenire skip-ahead
- * Wrapper pentru react-player care impiedica saritul peste continut nevizionat
+ * OnboardingVideoPlayer - Native HTML5 video player cu prevenire skip-ahead
+ * Foloseste <video> nativ in loc de react-player pentru compatibilitate mai buna
  */
 
-import { useState, useRef, useSyncExternalStore } from 'react'
-import dynamic from 'next/dynamic'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Play, Pause, RotateCcw, Volume2, VolumeX, CheckCircle2, Video } from 'lucide-react'
+import { Play, Pause, RotateCcw, Volume2, VolumeX, CheckCircle2, Video, Maximize } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Dynamic import for react-player to avoid SSR issues and type problems
-const ReactPlayer = dynamic(() => import('react-player'), { ssr: false })
-
-/** Progress state from react-player onProgress callback */
-interface OnProgressState {
-  played: number
-  playedSeconds: number
-  loaded: number
-  loadedSeconds: number
-}
-
-const VIDEO_STORAGE_KEY = 'laserzone-video-progress'
-
-interface VideoPlayerProgress {
-  lastPosition: number
-  furthestReached: number
-  totalDuration: number
-  completed: boolean
-}
-
 export interface OnboardingVideoPlayerProps {
-  /** URL-ul video-ului (YouTube, Vimeo, etc.) */
+  /** URL-ul video-ului */
   url: string
   /** Callback cand video-ul ajunge la 100% */
   onComplete?: () => void
@@ -50,58 +29,10 @@ export interface OnboardingVideoPlayerProps {
   className?: string
 }
 
-// Module-level cache for useSyncExternalStore
-// This prevents infinite loops by ensuring getSnapshot returns the same reference
-// when localStorage hasn't changed (Object.is comparison)
-let cachedRawString: string | null = null
-let cachedProgress: VideoPlayerProgress | null = null
-
-function saveStoredProgress(progress: VideoPlayerProgress): void {
-  try {
-    const json = JSON.stringify(progress)
-    localStorage.setItem(VIDEO_STORAGE_KEY, json)
-    // Update cache when we save
-    cachedRawString = json
-    cachedProgress = progress
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-// Dummy subscribe for useSyncExternalStore (localStorage is not subscribable)
-const subscribe = () => () => {}
-
-const getSnapshot = (): VideoPlayerProgress | null => {
-  if (typeof window === 'undefined') return null
-
-  const rawString = localStorage.getItem(VIDEO_STORAGE_KEY)
-
-  // Return cached if raw string unchanged (reference equality check)
-  if (rawString === cachedRawString) {
-    return cachedProgress
-  }
-
-  // Cache miss - parse and store
-  cachedRawString = rawString
-  if (rawString) {
-    try {
-      cachedProgress = JSON.parse(rawString) as VideoPlayerProgress
-    } catch {
-      cachedProgress = null
-    }
-  } else {
-    cachedProgress = null
-  }
-
-  return cachedProgress
-}
-
-const getServerSnapshot = () => null
-
 /**
  * Player video cu prevenire skip-ahead
  * - Nu permite saritul inainte de furthestReached
- * - Persista progresul in localStorage si store
+ * - Persista progresul in store
  * - Afiseaza progres si controale
  */
 export function OnboardingVideoPlayer({
@@ -112,181 +43,218 @@ export function OnboardingVideoPlayer({
   isCompleted = false,
   className,
 }: OnboardingVideoPlayerProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const playerRef = useRef<any>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
-  // Citeste progresul initial din localStorage folosind useSyncExternalStore
-  const storedProgress = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
-
-  // Determina valorile initiale (prioritate: initialProgress > storedProgress > default)
-  const initialPosition = initialProgress?.lastPosition ?? storedProgress?.lastPosition ?? 0
-  const initialFurthest = initialProgress?.furthestReached ?? storedProgress?.furthestReached ?? 0
-  const initialCompleted = isCompleted || initialProgress?.completed || storedProgress?.completed || false
-
-  // State local pentru player
+  // State
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [duration, setDuration] = useState(0)
-  const [currentPosition, setCurrentPosition] = useState(initialPosition)
-  const [furthestReached, setFurthestReached] = useState(initialFurthest)
-  const [completed, setCompleted] = useState(initialCompleted)
+  const [currentPosition, setCurrentPosition] = useState(0)
+  const [furthestReached, setFurthestReached] = useState(initialProgress?.furthestReached ?? 0)
+  const [completed, setCompleted] = useState(isCompleted || initialProgress?.completed || false)
   const [isReady, setIsReady] = useState(false)
-  const [isSeeking, setIsSeeking] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  // Ref pentru a evita actualizari duplicate
   const lastSavedPosition = useRef(0)
+  const seekingRef = useRef(false)
 
-  // Salveaza progresul in localStorage (backup)
-  const saveProgress = (position: number, furthest: number, done: boolean) => {
-    saveStoredProgress({
-      lastPosition: position,
-      furthestReached: furthest,
-      totalDuration: duration,
-      completed: done,
-    })
-  }
+  // Play/Pause
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current
+    if (!video || !isReady) return
 
-  // Handler pentru progres - chemat la fiecare secunda
-  const handleProgress = (state: OnProgressState) => {
-    if (isSeeking) return
+    if (video.paused) {
+      video.play().catch(() => {})
+      setIsPlaying(true)
+    } else {
+      video.pause()
+      setIsPlaying(false)
+    }
+  }, [isReady])
 
-    const position = state.playedSeconds
-    const newFurthest = Math.max(furthestReached, position)
+  // Toggle mute
+  const toggleMute = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = !video.muted
+    setIsMuted(video.muted)
+  }, [])
 
-    setCurrentPosition(position)
-    setFurthestReached(newFurthest)
+  // Restart
+  const handleRestart = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.currentTime = 0
+    setCurrentPosition(0)
+  }, [])
 
-    // Notifica store-ul la fiecare 5 secunde sau cand furthest se schimba
-    if (onProgress && (Math.abs(position - lastSavedPosition.current) >= 5 || newFurthest > furthestReached)) {
-      onProgress(position, duration)
-      lastSavedPosition.current = position
+  // Fullscreen
+  const handleFullscreen = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+    if (video.requestFullscreen) {
+      video.requestFullscreen()
+    }
+  }, [])
+
+  // Video events
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const onLoadedMetadata = () => {
+      setDuration(video.duration)
+      setIsReady(true)
+      setLoadError(null)
+
+      // Seek to saved position
+      if (initialProgress?.lastPosition && initialProgress.lastPosition > 0) {
+        video.currentTime = initialProgress.lastPosition
+      }
     }
 
-    // Salveaza local
-    saveProgress(position, newFurthest, completed)
+    const onTimeUpdate = () => {
+      if (seekingRef.current) return
+      const pos = video.currentTime
+      const dur = video.duration || 0
+
+      setCurrentPosition(pos)
+
+      const newFurthest = Math.max(furthestReached, pos)
+      if (newFurthest > furthestReached) {
+        setFurthestReached(newFurthest)
+      }
+
+      // Notify store every 5 seconds
+      if (onProgress && dur > 0 && Math.abs(pos - lastSavedPosition.current) >= 5) {
+        onProgress(pos, dur)
+        lastSavedPosition.current = pos
+      }
+    }
+
+    const onEnded = () => {
+      setIsPlaying(false)
+      if (!completed) {
+        setCompleted(true)
+        setFurthestReached(video.duration)
+        onProgress?.(video.duration, video.duration)
+        onComplete?.()
+      }
+    }
+
+    const onPlay = () => setIsPlaying(true)
+    const onPause = () => setIsPlaying(false)
+
+    const onError = () => {
+      console.error('[VideoPlayer] Error loading video')
+      setLoadError('Video-ul nu a putut fi incarcat. Contactati managerul pentru a re-uploada video-ul.')
+    }
+
+    // Prevent seeking past furthestReached
+    const onSeeking = () => {
+      seekingRef.current = true
+      if (!completed && video.currentTime > furthestReached + 1) {
+        video.currentTime = furthestReached
+      }
+    }
+
+    const onSeeked = () => {
+      seekingRef.current = false
+    }
+
+    video.addEventListener('loadedmetadata', onLoadedMetadata)
+    video.addEventListener('timeupdate', onTimeUpdate)
+    video.addEventListener('ended', onEnded)
+    video.addEventListener('play', onPlay)
+    video.addEventListener('pause', onPause)
+    video.addEventListener('error', onError)
+    video.addEventListener('seeking', onSeeking)
+    video.addEventListener('seeked', onSeeked)
+
+    return () => {
+      video.removeEventListener('loadedmetadata', onLoadedMetadata)
+      video.removeEventListener('timeupdate', onTimeUpdate)
+      video.removeEventListener('ended', onEnded)
+      video.removeEventListener('play', onPlay)
+      video.removeEventListener('pause', onPause)
+      video.removeEventListener('error', onError)
+      video.removeEventListener('seeking', onSeeking)
+      video.removeEventListener('seeked', onSeeked)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completed, initialProgress?.lastPosition])
+
+  // Update furthestReached ref for seeking handler
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const onSeeking = () => {
+      if (!completed && video.currentTime > furthestReached + 1) {
+        video.currentTime = furthestReached
+      }
+    }
+
+    video.addEventListener('seeking', onSeeking)
+    return () => video.removeEventListener('seeking', onSeeking)
+  }, [furthestReached, completed])
+
+  // Format time (mm:ss)
+  const formatTime = (seconds: number) => {
+    if (!seconds || !isFinite(seconds)) return '0:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Handler pentru click pe progress bar - prevenire skip-ahead
+  // Progress percentages
+  const progressPercent = duration > 0 ? (currentPosition / duration) * 100 : 0
+  const watchedPercent = duration > 0 ? (furthestReached / duration) * 100 : 0
+
+  // Handle click on progress bar
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!playerRef.current || !duration) return
+    const video = videoRef.current
+    if (!video || !duration) return
 
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const percentage = clickX / rect.width
     const seekTo = percentage * duration
 
-    // Nu permite saritul peste furthestReached
-    const allowedPosition = Math.min(seekTo, furthestReached)
-
-    setIsSeeking(true)
+    // Don't allow seeking past furthestReached
+    const allowedPosition = completed ? seekTo : Math.min(seekTo, furthestReached)
+    video.currentTime = allowedPosition
     setCurrentPosition(allowedPosition)
-    playerRef.current.seekTo(allowedPosition, 'seconds')
-
-    // Reset seeking flag dupa un scurt delay
-    setTimeout(() => setIsSeeking(false), 100)
-  }
-
-  // Handler cand video-ul ajunge la sfarsit
-  const handleEnded = () => {
-    if (!completed) {
-      setCompleted(true)
-      saveProgress(duration, duration, true)
-      onComplete?.()
-    }
-    setIsPlaying(false)
-  }
-
-  // Handler pentru durata totala
-  const handleDuration = (dur: number) => {
-    setDuration(dur)
-  }
-
-  // Handler pentru ready
-  const handleReady = () => {
-    setIsReady(true)
-    setLoadError(null)
-
-    // Seek la pozitia salvata
-    const seekPosition = initialProgress?.lastPosition ?? storedProgress?.lastPosition
-    if (seekPosition && playerRef.current) {
-      playerRef.current.seekTo(seekPosition, 'seconds')
-    }
-  }
-
-  // Handler pentru eroare la incarcare video
-  const handleError = (error: unknown) => {
-    console.error('[VideoPlayer] Error loading video:', error)
-    setLoadError('Video-ul nu a putut fi incarcat. Fisierul poate lipsi de pe server (404) sau formatul nu este suportat. Contactati managerul pentru a re-uploada video-ul.')
-  }
-
-  // Formatare timp (mm:ss)
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  // Calcul procente
-  const progressPercent = duration > 0 ? (currentPosition / duration) * 100 : 0
-  const watchedPercent = duration > 0 ? (furthestReached / duration) * 100 : 0
-
-  // Handler restart
-  const handleRestart = () => {
-    playerRef.current?.seekTo(0, 'seconds')
-    setCurrentPosition(0)
   }
 
   return (
     <div className={cn('space-y-4', className)}>
       {/* Player container */}
       <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-        <ReactPlayer
-          ref={playerRef}
-          url={url}
-          width="100%"
-          height="100%"
-          playing={isPlaying}
-          muted={isMuted}
-          onProgress={handleProgress}
-          onDuration={handleDuration}
-          onEnded={handleEnded}
-          onReady={handleReady}
-          onError={handleError}
-          progressInterval={1000}
-          config={{
-            file: {
-              attributes: {
-                controlsList: 'nodownload',
-              },
-            },
-          }}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <video
+          ref={videoRef}
+          src={url}
+          className="w-full h-full"
+          playsInline
+          preload="metadata"
+          onClick={togglePlay}
         />
 
         {/* Overlay pentru completed */}
         {completed && !isPlaying && (
-          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2">
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-2 cursor-pointer" onClick={togglePlay}>
             <CheckCircle2 className="h-16 w-16 text-success" />
             <span className="text-lg font-semibold text-success">Video completat!</span>
           </div>
         )}
 
-        {/* Error indicator - always visible when there's an error */}
+        {/* Error indicator */}
         {loadError && (
           <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
             <div className="text-center space-y-3 p-6 max-w-md">
               <Video className="h-12 w-12 mx-auto text-destructive/70" />
               <p className="text-sm text-destructive">{loadError}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setLoadError(null)
-                  setIsReady(false)
-                }}
-              >
-                Reincearca
-              </Button>
             </div>
           </div>
         )}
@@ -297,34 +265,43 @@ export function OnboardingVideoPlayer({
             <div className="animate-pulse text-muted-foreground">Se incarca...</div>
           </div>
         )}
+
+        {/* Play overlay when paused (not completed) */}
+        {isReady && !isPlaying && !completed && (
+          <div className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/30" onClick={togglePlay}>
+            <div className="h-16 w-16 rounded-full bg-primary/90 flex items-center justify-center">
+              <Play className="h-8 w-8 text-primary-foreground ml-1" />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Progress bar cu vizualizare zona permisa */}
+      {/* Progress bar */}
       <div className="space-y-2">
         <div
           className="relative h-3 bg-muted rounded-full cursor-pointer overflow-hidden"
           onClick={handleSeek}
         >
-          {/* Zona permisa (furthestReached) */}
+          {/* Watched zone (furthestReached) */}
           <div
             className="absolute inset-y-0 left-0 bg-primary/30"
             style={{ width: `${watchedPercent}%` }}
           />
 
-          {/* Pozitia curenta */}
+          {/* Current position */}
           <div
-            className="absolute inset-y-0 left-0 bg-primary transition-all duration-100"
+            className="absolute inset-y-0 left-0 bg-primary transition-all duration-200"
             style={{ width: `${progressPercent}%` }}
           />
 
-          {/* Indicator pozitie */}
+          {/* Position indicator */}
           <div
-            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow-lg transition-all duration-100"
+            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow-lg transition-all duration-200"
             style={{ left: `calc(${progressPercent}% - 8px)` }}
           />
         </div>
 
-        {/* Timp si info */}
+        {/* Time info */}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{formatTime(currentPosition)}</span>
           <span className="text-xs">
@@ -334,9 +311,8 @@ export function OnboardingVideoPlayer({
         </div>
       </div>
 
-      {/* Controale */}
+      {/* Controls */}
       <div className="flex items-center justify-center gap-4">
-        {/* Restart */}
         <Button
           variant="ghost"
           size="icon"
@@ -346,11 +322,10 @@ export function OnboardingVideoPlayer({
           <RotateCcw className="h-5 w-5" />
         </Button>
 
-        {/* Play/Pause */}
         <Button
           variant="default"
           size="lg"
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={togglePlay}
           disabled={!isReady}
           className="gap-2"
         >
@@ -367,11 +342,10 @@ export function OnboardingVideoPlayer({
           )}
         </Button>
 
-        {/* Mute/Unmute */}
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsMuted(!isMuted)}
+          onClick={toggleMute}
           disabled={!isReady}
         >
           {isMuted ? (
@@ -380,12 +354,23 @@ export function OnboardingVideoPlayer({
             <Volume2 className="h-5 w-5" />
           )}
         </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleFullscreen}
+          disabled={!isReady}
+        >
+          <Maximize className="h-5 w-5" />
+        </Button>
       </div>
 
-      {/* Info skip prevention */}
-      <p className="text-xs text-muted-foreground text-center">
-        Nu puteti sari peste continutul nevizionat. Progresul se salveaza automat.
-      </p>
+      {/* Skip prevention info */}
+      {!completed && (
+        <p className="text-xs text-muted-foreground text-center">
+          Nu puteti sari peste continutul nevizionat. Progresul se salveaza automat.
+        </p>
+      )}
     </div>
   )
 }

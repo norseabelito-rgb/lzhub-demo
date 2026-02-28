@@ -131,6 +131,15 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
     }
   }, [onReviewContent, goToStep])
 
+  // Loading state - config not yet loaded
+  if (!onboardingConfig || questions.length === 0) {
+    return (
+      <div className={cn('flex items-center justify-center py-12', className)}>
+        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
   // If already passed, show results
   const hasPassed = currentProgress?.quizAttempts.some((a) => a.passed)
   if (hasPassed && quizState === 'quiz') {

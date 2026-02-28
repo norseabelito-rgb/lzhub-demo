@@ -509,6 +509,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
 
   confirmDocument: async (documentId) => {
     const { currentProgress } = get()
+    console.log('[Store] confirmDocument called', { documentId, hasProgress: !!currentProgress, employeeId: currentProgress?.employeeId })
     if (!currentProgress) {
       const msg = 'Eroare: progresul onboarding nu este incarcat. Reincarcati pagina.'
       set({ error: msg })
@@ -519,6 +520,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
 
     set({ isLoading: true, error: null })
     try {
+      console.log('[Store] confirmDocument fetching PUT /api/onboarding/' + currentProgress.employeeId + '/documents')
       const res = await fetch(`/api/onboarding/${currentProgress.employeeId}/documents`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -529,13 +531,16 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
         }),
       })
 
+      console.log('[Store] confirmDocument response status:', res.status)
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
+        console.error('[Store] confirmDocument API error:', errData)
         throw new Error(errData.error || 'Eroare la confirmarea documentului')
       }
 
       const data = await res.json()
       const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
+      console.log('[Store] confirmDocument success, doc confirmed:', progress.documents.find(d => d.documentId === documentId)?.confirmed)
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
@@ -544,6 +549,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
         isLoading: false,
       }))
     } catch (err) {
+      console.error('[Store] confirmDocument caught error:', err)
       set({ isLoading: false, error: (err as Error).message })
       throw err
     }

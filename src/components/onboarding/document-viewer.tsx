@@ -62,6 +62,25 @@ export function DocumentViewer({
     return () => clearInterval(interval)
   }, [minReadingSeconds, isConfirmed])
 
+  // Check if content fits without scrolling (no scroll needed = already "read")
+  useEffect(() => {
+    if (isConfirmed || hasScrolledToBottom) return
+
+    // Small delay to let the browser render the content
+    const timer = setTimeout(() => {
+      const el = scrollContainerRef.current
+      if (!el) return
+      // If content fits in container, no scroll is needed
+      if (el.scrollHeight <= el.clientHeight + 20) {
+        console.log('[DocumentViewer] Content fits without scroll, auto-marking as read')
+        setHasScrolledToBottom(true)
+        setShowScrollHint(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [content, isConfirmed, hasScrolledToBottom])
+
   // Conditia pentru deblocarea butonului de confirmare
   const canConfirm = hasScrolledToBottom && !isConfirmed && (!minReadingSeconds || timeElapsed >= minReadingSeconds)
 
@@ -84,12 +103,16 @@ export function DocumentViewer({
 
   // Handler pentru confirmare
   const handleConfirm = async () => {
+    console.log('[DocumentViewer] handleConfirm called', { canConfirm, isConfirming, documentId, hasOnConfirm: !!onConfirm })
     if (!canConfirm || isConfirming) return
     setIsConfirming(true)
     setLocalError(null)
     try {
+      console.log('[DocumentViewer] calling onConfirm...')
       await onConfirm?.(documentId)
+      console.log('[DocumentViewer] onConfirm completed successfully')
     } catch (err) {
+      console.error('[DocumentViewer] onConfirm error:', err)
       setLocalError((err as Error).message || 'Eroare la confirmarea documentului')
     } finally {
       setIsConfirming(false)

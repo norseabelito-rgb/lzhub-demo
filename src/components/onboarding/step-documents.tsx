@@ -95,6 +95,7 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
 
   // Handle document confirmation
   const handleConfirmDocument = async (documentId: string) => {
+    console.log('[StepDocuments] handleConfirmDocument called', { documentId })
     await confirmDocument(documentId)
 
     // Verify confirmation actually persisted in store
@@ -102,6 +103,8 @@ export function StepDocuments({ onComplete, className }: StepDocumentsProps) {
     const docConfirmed = updatedProgress?.documents.find(
       (d) => d.documentId === documentId
     )?.confirmed
+
+    console.log('[StepDocuments] after confirmDocument:', { docConfirmed, currentStep: updatedProgress?.currentStep })
 
     if (!docConfirmed) {
       throw new Error(

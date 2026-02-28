@@ -53,7 +53,7 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
 
   // Calculate progress
   const answeredCount = Object.keys(answers).length
-  const progressPercent = (answeredCount / totalQuestions) * 100
+  const progressPercent = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0
 
   // Check if current question is answered
   const isCurrentAnswered = useMemo(() => {
@@ -74,12 +74,13 @@ export function StepQuiz({ onComplete, onReviewContent, className }: StepQuizPro
   // Handle answer change
   const handleAnswerChange = useCallback(
     (answer: string | string[]) => {
+      if (!currentQuestion) return
       setAnswers((prev) => ({
         ...prev,
         [currentQuestion.id]: answer,
       }))
     },
-    [currentQuestion.id]
+    [currentQuestion?.id]
   )
 
   // Navigate to next question

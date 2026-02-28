@@ -217,8 +217,7 @@ export function OnboardingVideoPlayer({
   // Handler pentru eroare la incarcare video
   const handleError = (error: unknown) => {
     console.error('[VideoPlayer] Error loading video:', error)
-    setLoadError('Video-ul nu a putut fi incarcat. Verificati ca fisierul exista si formatul este suportat.')
-    setIsReady(false)
+    setLoadError('Video-ul nu a putut fi incarcat. Fisierul poate lipsi de pe server (404) sau formatul nu este suportat. Contactati managerul pentru a re-uploada video-ul.')
   }
 
   // Formatare timp (mm:ss)
@@ -272,28 +271,30 @@ export function OnboardingVideoPlayer({
           </div>
         )}
 
-        {/* Loading / Error indicator */}
-        {!isReady && (
+        {/* Error indicator - always visible when there's an error */}
+        {loadError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
+            <div className="text-center space-y-3 p-6 max-w-md">
+              <Video className="h-12 w-12 mx-auto text-destructive/70" />
+              <p className="text-sm text-destructive">{loadError}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setLoadError(null)
+                  setIsReady(false)
+                }}
+              >
+                Reincearca
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading indicator */}
+        {!isReady && !loadError && (
           <div className="absolute inset-0 flex items-center justify-center bg-black">
-            {loadError ? (
-              <div className="text-center space-y-3 p-6 max-w-md">
-                <Video className="h-12 w-12 mx-auto text-destructive/70" />
-                <p className="text-sm text-destructive">{loadError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setLoadError(null)
-                    // Force re-render by toggling a state
-                    setIsReady(false)
-                  }}
-                >
-                  Reincearca
-                </Button>
-              </div>
-            ) : (
-              <div className="animate-pulse text-muted-foreground">Se incarca...</div>
-            )}
+            <div className="animate-pulse text-muted-foreground">Se incarca...</div>
           </div>
         )}
       </div>

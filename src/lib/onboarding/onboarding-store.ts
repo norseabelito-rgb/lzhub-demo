@@ -220,6 +220,32 @@ function areDependenciesMet(progress: OnboardingProgress, step: OnboardingStep):
 }
 
 // ============================================================================
+// Helpers for Store
+// ============================================================================
+
+/**
+ * After an API call that returns the full progress record, the response
+ * contains `currentStep` as stored in the DB.  The client-side wizard may
+ * have advanced beyond that value (via goToStep) so we must preserve the
+ * client-side step to avoid the wizard jumping backward.
+ */
+function preserveClientStep(
+  apiProgress: OnboardingProgress,
+  clientStep: OnboardingStep | undefined
+): OnboardingProgress {
+  if (!clientStep) return apiProgress
+
+  const clientIdx = STEP_ORDER.indexOf(clientStep)
+  const apiIdx = STEP_ORDER.indexOf(apiProgress.currentStep)
+
+  // Keep whichever step is further ahead
+  if (clientIdx > apiIdx) {
+    return { ...apiProgress, currentStep: clientStep }
+  }
+  return apiProgress
+}
+
+// ============================================================================
 // Store Implementation
 // ============================================================================
 
@@ -338,6 +364,8 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
   goToStep: (step) => {
     if (!get().canAccessStep(step)) return
 
+    const employeeId = get().currentProgress?.employeeId
+
     set((state) => {
       if (!state.currentProgress) return state
 
@@ -353,6 +381,15 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
         ),
       }
     })
+
+    // Persist to DB (fire-and-forget so UI stays snappy)
+    if (employeeId) {
+      fetch(`/api/onboarding/${employeeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentStep: step }),
+      }).catch(() => {})
+    }
   },
 
   // ========== NDA Step ==========
@@ -379,7 +416,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }
 
       const data = await res.json()
-      const progress = mapApiToProgress(data)
+      const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
@@ -498,7 +535,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }
 
       const data = await res.json()
-      const progress = mapApiToProgress(data)
+      const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
@@ -571,7 +608,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }
 
       const data = await res.json()
-      const progress = mapApiToProgress(data)
+      const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
@@ -604,7 +641,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }
 
       const data = await res.json()
-      const progress = mapApiToProgress(data)
+      const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
       const quizResult = data._quizResult
 
       set((state) => ({
@@ -665,7 +702,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }
 
       const data = await res.json()
-      const progress = mapApiToProgress(data)
+      const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
@@ -696,7 +733,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }
 
       const data = await res.json()
-      const progress = mapApiToProgress(data)
+      const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
@@ -728,7 +765,7 @@ export const useOnboardingStore = create<OnboardingStore>()((set, get) => ({
       }
 
       const data = await res.json()
-      const progress = mapApiToProgress(data)
+      const progress = preserveClientStep(mapApiToProgress(data), get().currentProgress?.currentStep)
       set((state) => ({
         currentProgress: progress,
         allProgress: state.allProgress.map((p) =>
